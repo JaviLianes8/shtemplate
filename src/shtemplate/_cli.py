@@ -10,7 +10,7 @@ from typing import NoReturn
 
 from . import __version__
 from ._core import expand
-from ._dotenv import EnvFileError, parse_env
+from ._dotenv import EnvFileError, parse_env, valid_name
 from ._errors import ExpansionError
 from ._tools import list_vars
 
@@ -57,9 +57,14 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def _read(path: str) -> str:
     if path == "-":
-        return sys.stdin.buffer.read().decode("utf-8")
-    with open(path, "rb") as handle:
-        return handle.read().decode("utf-8")
+        data, label = sys.stdin.buffer.read(), "stdin"
+    else:
+        with open(path, "rb") as handle:
+            data, label = handle.read(), path
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise EnvFileError(f"{label}: not valid UTF-8 (byte {exc.start})") from None
 
 
 def _environment(args: argparse.Namespace) -> dict[str, str]:
@@ -68,14 +73,15 @@ def _environment(args: argparse.Namespace) -> dict[str, str]:
         env.update(parse_env(_read(path), path))
     for item in args.set:
         name, sep, value = item.partition("=")
-        if not sep or not name:
-            raise EnvFileError(f"--set expects NAME=VALUE, got {item!r}")
+        if not sep or not valid_name(name):
+            raise EnvFileError(f"--set expects NAME=VALUE with a valid name, got {item!r}")
         env[name] = value
     return env
 
 
 def _write(text: str, output: str | None) -> None:
-    data = text.encode("utf-8")
+    # surrogateescape writes back undecodable bytes taken from os.environ or argv.
+    data = text.encode("utf-8", errors="surrogateescape")
     if output is None:
         sys.stdout.buffer.write(data)
         sys.stdout.buffer.flush()
@@ -96,7 +102,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         result = expand(template, _environment(args), strict=args.strict, safe=args.safe)
         _write(result, args.output)
-    except (ExpansionError, EnvFileError, OSError, UnicodeDecodeError) as exc:
+    except (ExpansionError, EnvFileError, OSError, UnicodeError) as exc:
         print(f"shtemplate: error: {exc}", file=sys.stderr)
         return 1
     return 0

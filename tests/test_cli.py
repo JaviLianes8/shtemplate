@@ -28,7 +28,7 @@ def run(monkeypatch: pytest.MonkeyPatch, argv: list[str], stdin: str = "") -> tu
         code = int(exc.code or 0)
     out.flush()
     assert isinstance(out.buffer, io.BytesIO)
-    return code, out.buffer.getvalue().decode("utf-8"), err.getvalue()
+    return code, out.buffer.getvalue().decode("utf-8", "surrogateescape"), err.getvalue()
 
 
 def test_expands_stdin_against_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -117,3 +117,25 @@ def test_invalid_utf8_input_is_an_error(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(sys, "stderr", err)
     assert main(["-i"]) == 1
     assert "shtemplate: error:" in err.getvalue()
+
+
+def test_undecodable_environment_bytes_are_written_back(monkeypatch: pytest.MonkeyPatch) -> None:
+    code, _, err = run(monkeypatch, ["-i", "-s", "A=x\udcffy"], "$A")
+    assert (code, err) == (0, "")
+    assert isinstance(sys.stdout.buffer, io.BytesIO)
+    assert sys.stdout.buffer.getvalue() == b"x\xffy"
+
+
+@pytest.mark.parametrize("item", ["1bad=x", "A B=y", "=z"])
+def test_set_rejects_invalid_names(monkeypatch: pytest.MonkeyPatch, item: str) -> None:
+    code, _, err = run(monkeypatch, ["-s", item], "x")
+    assert code == 1 and "valid name" in err
+
+
+def test_env_file_that_is_not_utf8_names_the_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    env = tmp_path / "latin.env"
+    env.write_bytes(b"A=\xff\n")
+    code, _, err = run(monkeypatch, ["-e", str(env)], "x")
+    assert code == 1 and f"{env}: not valid UTF-8" in err

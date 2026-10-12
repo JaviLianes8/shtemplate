@@ -32,7 +32,7 @@ def parse_env(text: str, source: str = "<env>") -> dict[str, str]:
             line = line[7:].lstrip()
         name, sep, rest = line.partition("=")
         name = name.rstrip()
-        if not sep or not _valid_name(name):
+        if not sep or not valid_name(name):
             raise EnvFileError(f"{source}:{number}: expected NAME=VALUE")
         try:
             values[name] = _value(rest.strip())
@@ -41,7 +41,8 @@ def parse_env(text: str, source: str = "<env>") -> dict[str, str]:
     return values
 
 
-def _valid_name(name: str) -> bool:
+def valid_name(name: str) -> bool:
+    """Return True when ``name`` is a POSIX shell variable name."""
     return bool(name) and name[0] in NAME_START and all(c in NAME_REST for c in name)
 
 
