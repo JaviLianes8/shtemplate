@@ -110,8 +110,8 @@ def test_unknown_operator_raises() -> None:
         expand("${X@y}", {"X": "v"})
 
 
-def test_default_word_is_used_literally() -> None:
-    assert expand("${X:-$HOME/bin}", {}) == "$HOME/bin"
+def test_default_word_is_expanded_like_the_shell() -> None:
+    assert expand("${X:-$HOME/bin}", {"HOME": "/h"}) == "/h/bin"
 
 
 def test_env_defaults_to_empty_mapping() -> None:

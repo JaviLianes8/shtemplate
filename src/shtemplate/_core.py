@@ -1,14 +1,17 @@
-"""POSIX shell-style parameter expansion over a mapping."""
+"""Expand a parsed template against a mapping."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, MutableMapping
 
-from ._errors import ExpansionError
+from ._errors import ParameterError, UnsafeTemplateError, UnsetVariableError
+from ._nodes import PATTERN_OPS, Node, Param, Text
+from ._parser import parse
+from ._pattern import remove
 
-_NAME_START = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")
-_NAME_REST = _NAME_START | frozenset("0123456789")
-_OPERATORS = frozenset("-+?")
+SAFE_MAX_OUTPUT = 1_000_000
+WORK_FACTOR = 10
+Segment = tuple[str, bool]
 
 
 def expand(
@@ -16,91 +19,141 @@ def expand(
     env: Mapping[str, str] | None = None,
     *,
     strict: bool = False,
+    safe: bool = False,
+    assigned: MutableMapping[str, str] | None = None,
+    max_output: int | None = None,
 ) -> str:
-    """Expand ``$VAR`` and ``${VAR...}`` forms in ``template`` from ``env``.
+    """Expand POSIX shell parameter expansions in ``template`` from ``env``.
 
-    Supports ``${VAR}``, ``${VAR:-default}``, ``${VAR-default}``,
-    ``${VAR:?message}``, ``${VAR:+alt}`` and their colon-less variants. A literal
-    dollar is written ``$$``. In strict mode a plain reference to an unset
-    variable raises instead of expanding to an empty string.
+    Supported forms: ``$NAME``, ``${NAME}``, ``${#NAME}``, the defaulting
+    operators ``:-``, ``-``, ``:=``, ``=``, ``:?``, ``?``, ``:+``, ``+`` and the
+    pattern removals ``#``, ``##``, ``%``, ``%%``. Operator words are expanded
+    only when needed, so they may nest (``${A:-${B:-x}}``). Backslash escapes
+    ``$``, backquote and backslash (``\\$HOME`` stays literal) and ``$$`` is a
+    literal dollar. Nothing is ever executed: ``$(...)`` and backquotes are left
+    as literal text, or rejected in safe mode.
+
+    Args:
+        template: The text to expand.
+        env: The variables. Defaults to an empty mapping; pass ``os.environ``
+            explicitly to read the process environment. Never mutated.
+        strict: Behave like ``set -u``: a plain reference, ``${#NAME}`` or a
+            pattern removal on an unset variable raises ``UnsetVariableError``.
+        safe: For untrusted templates: reject ``$(...)``, ``$((...))`` and
+            backquotes with ``UnsafeTemplateError`` and cap the output at
+            ``max_output`` (one million characters unless given).
+        assigned: If given, receives the values assigned by ``:=`` and ``=``
+            after a successful expansion. Pass ``env`` itself to update it.
+        max_output: Raise ``UnsafeTemplateError`` if any expansion grows past
+            this many characters, or if a pattern removal would need more than
+            ten times this many matching steps (value length times pattern
+            length), which bounds the time an untrusted template can take.
+
+    Returns:
+        The expanded string.
+
+    Raises:
+        TemplateSyntaxError: The template is malformed.
+        UnsetVariableError: Strict mode met an unset variable.
+        ParameterError: A ``:?`` or ``?`` expansion found its variable missing.
+        UnsafeTemplateError: Safe mode rejected the template or the output limit
+            was reached.
+
+    Examples:
+        >>> expand("${USER:-guest}@${HOST:-localhost}", {"USER": "ada"})
+        'ada@localhost'
+        >>> expand("${FILE%.*}.o ${#FILE}", {"FILE": "main.c"})
+        'main.o 6'
+        >>> expand("${URL#*://}", {"URL": "https://example.org"})
+        'example.org'
     """
-    source: Mapping[str, str] = env if env is not None else {}
-    out: list[str] = []
-    i, n = 0, len(template)
-    while i < n:
-        char = template[i]
-        if char != "$":
-            out.append(char)
-            i += 1
-        elif i + 1 < n and template[i + 1] == "$":
-            out.append("$")
-            i += 2
-        elif i + 1 < n and template[i + 1] == "{":
-            value, i = _expand_braced(template, i + 2, source, strict)
-            out.append(value)
-        else:
-            name, i = _read_name(template, i + 1)
-            out.append(_lookup(name, source, strict) if name else "$")
-    return "".join(out)
+    parsed = parse(template)
+    if safe:
+        if parsed.unsafe:
+            position, kind = parsed.unsafe[0]
+            raise UnsafeTemplateError(
+                f"{kind} is not allowed in safe mode (at position {position})", position
+            )
+        if max_output is None:
+            max_output = SAFE_MAX_OUTPUT
+    evaluator = _Evaluator(env if env is not None else {}, strict, max_output)
+    result = evaluator.text(parsed.nodes)
+    if assigned is not None:
+        assigned.update(evaluator.overlay)
+    return result
 
 
-def _read_name(text: str, start: int) -> tuple[str, int]:
-    if start >= len(text) or text[start] not in _NAME_START:
-        return "", start
-    end = start + 1
-    while end < len(text) and text[end] in _NAME_REST:
-        end += 1
-    return text[start:end], end
+class _Evaluator:
+    def __init__(self, env: Mapping[str, str], strict: bool, max_output: int | None) -> None:
+        self.env = env
+        self.strict = strict
+        self.max_output = max_output
+        self.overlay: dict[str, str] = {}
 
+    def lookup(self, name: str) -> str | None:
+        if name in self.overlay:
+            return self.overlay[name]
+        return self.env.get(name)
 
-def _expand_braced(text: str, start: int, env: Mapping[str, str], strict: bool) -> tuple[str, int]:
-    end = text.find("}", start)
-    if end == -1:
-        raise ExpansionError(f"unterminated expansion: missing '}}' in {text!r}")
-    return _apply(text[start:end], env, strict), end + 1
+    def _check(self, size: int) -> None:
+        if self.max_output is not None and size > self.max_output:
+            raise UnsafeTemplateError(
+                f"expansion exceeds the limit of {self.max_output} characters"
+            )
 
+    def segments(self, nodes: tuple[Node, ...]) -> list[Segment]:
+        """Expand ``nodes`` into ``(text, literal)`` pieces; literal pieces match as-is."""
+        parts: list[Segment] = []
+        for node in nodes:
+            if isinstance(node, Text):
+                parts.append((node.value, node.quoted))
+            else:
+                found = self.param(node)
+                if node.quoted:
+                    found = [(value, True) for value, _ in found]
+                parts.extend(found)
+        self._check(sum(len(value) for value, _ in parts))
+        return parts
 
-def _apply(body: str, env: Mapping[str, str], strict: bool) -> str:
-    name, rest = _split_name(body)
-    if not name:
-        raise ExpansionError(f"invalid variable name in '${{{body}}}'")
-    if not rest:
-        return _lookup(name, env, strict)
-    colon = rest[0] == ":"
-    cursor = 1 if colon else 0
-    if cursor >= len(rest) or rest[cursor] not in _OPERATORS:
-        raise ExpansionError(f"unknown operator in '${{{body}}}'")
-    return _apply_operator(name, rest[cursor], rest[cursor + 1 :], colon, env)
+    def text(self, nodes: tuple[Node, ...]) -> str:
+        return "".join(value for value, _ in self.segments(nodes))
 
+    def pattern(self, nodes: tuple[Node, ...]) -> str:
+        return "".join(
+            "".join("\\" + c for c in value) if literal else value
+            for value, literal in self.segments(nodes)
+        )
 
-def _apply_operator(
-    name: str, operator: str, word: str, colon: bool, env: Mapping[str, str]
-) -> str:
-    present = name in env
-    value = env[name] if present else ""
-    triggered = (not present or value == "") if colon else not present
-    if operator == "-":
-        return word if triggered else value
-    if operator == "+":
-        return "" if triggered else word
-    message = word or f"{name}: parameter null or not set"
-    if triggered:
-        raise ExpansionError(message)
-    return value
+    def _unset(self, node: Param) -> str:
+        if self.strict:
+            raise UnsetVariableError(node.name, node.position)
+        return ""
 
-
-def _split_name(body: str) -> tuple[str, str]:
-    if not body or body[0] not in _NAME_START:
-        return "", body
-    end = 1
-    while end < len(body) and body[end] in _NAME_REST:
-        end += 1
-    return body[:end], body[end:]
-
-
-def _lookup(name: str, env: Mapping[str, str], strict: bool) -> str:
-    if name in env:
-        return env[name]
-    if strict:
-        raise ExpansionError(f"undefined variable: {name}")
-    return ""
+    def param(self, node: Param) -> list[Segment]:
+        value = self.lookup(node.name)
+        op = node.op
+        if op == "":
+            return [(self._unset(node) if value is None else value, False)]
+        if op == "len":
+            return [(str(len(self._unset(node) if value is None else value)), False)]
+        if op in PATTERN_OPS:
+            # dash and bash both skip the pattern word of an unset variable.
+            if value is None:
+                return [(self._unset(node), False)]
+            limit = None if self.max_output is None else self.max_output * WORK_FACTOR
+            return [(remove(value, self.pattern(node.word), op, limit), False)]
+        missing = value is None or (node.colon and value == "")
+        if op == "+":
+            return [] if missing else self.segments(node.word)
+        if not missing:
+            return [(value or "", False)]
+        if op == "-":
+            return self.segments(node.word)
+        if op == "=":
+            word = self.segments(node.word)
+            self.overlay[node.name] = "".join(text for text, _ in word)
+            return word
+        detail = self.text(node.word)
+        if not detail:
+            detail = "parameter null or not set" if node.colon else "parameter not set"
+        raise ParameterError(node.name, detail, node.position)
