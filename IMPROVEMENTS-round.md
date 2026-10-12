@@ -6,7 +6,7 @@ Progress:
 - [x] Escaping, typed errors with positions, strict and safe modes
 - [x] Listing referenced variables and escaping helper
 - [x] CLI with [project.scripts]
-- [ ] Docs: docstrings, GUIDE, README, CHANGELOG, version bump
+- [x] Docs: docstrings, GUIDE, README, CHANGELOG, version bump
 - [ ] Gates: ruff format, ruff check, mypy --strict, pytest
 - [ ] Contracts, oracle corpus (dash via WSL), fuzz, wheel e2e
 - [ ] Pull request opened
