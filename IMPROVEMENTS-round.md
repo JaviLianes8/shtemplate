@@ -2,10 +2,10 @@
 
 Progress:
 - [x] Brainstorm ranked improvements
-- [ ] Core: full parameter expansion (2.6.2) with nested words and pattern removal
-- [ ] Escaping, typed errors with positions, strict and safe modes
-- [ ] Listing referenced variables and escaping helper
-- [ ] CLI with [project.scripts]
+- [x] Core: full parameter expansion (2.6.2) with nested words and pattern removal
+- [x] Escaping, typed errors with positions, strict and safe modes
+- [x] Listing referenced variables and escaping helper
+- [x] CLI with [project.scripts]
 - [ ] Docs: docstrings, GUIDE, README, CHANGELOG, version bump
 - [ ] Gates: ruff format, ruff check, mypy --strict, pytest
 - [ ] Contracts, oracle corpus (dash via WSL), fuzz, wheel e2e
