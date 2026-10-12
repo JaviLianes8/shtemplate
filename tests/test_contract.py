@@ -2,7 +2,16 @@ import importlib.resources
 
 import shtemplate
 
-PUBLIC_API: list[str] = ["ExpansionError", "expand"]
+PUBLIC_API: list[str] = [
+    "ExpansionError",
+    "ParameterError",
+    "TemplateSyntaxError",
+    "UnsafeTemplateError",
+    "UnsetVariableError",
+    "escape",
+    "expand",
+    "list_vars",
+]
 
 
 def test_all_lists_exactly_the_public_api() -> None:
