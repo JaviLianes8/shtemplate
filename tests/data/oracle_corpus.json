@@ -1549,6 +1549,66 @@
    ]
   },
   {
+   "template": "${U%${U:?x}}",
+   "strict": false,
+   "dash": [
+    "ok",
+    ""
+   ],
+   "bash": [
+    "ok",
+    ""
+   ]
+  },
+  {
+   "template": "${A%${U:?x}}",
+   "strict": false,
+   "dash": [
+    "error",
+    ""
+   ],
+   "bash": [
+    "error",
+    ""
+   ]
+  },
+  {
+   "template": "${U#${N:=v}}[$N]",
+   "strict": false,
+   "dash": [
+    "ok",
+    "[]"
+   ],
+   "bash": [
+    "ok",
+    "[]"
+   ]
+  },
+  {
+   "template": "${A#${N:=v}}[$N]",
+   "strict": false,
+   "dash": [
+    "ok",
+    "abc[v]"
+   ],
+   "bash": [
+    "ok",
+    "abc[v]"
+   ]
+  },
+  {
+   "template": "${U%%${U:?x}}",
+   "strict": false,
+   "dash": [
+    "ok",
+    ""
+   ],
+   "bash": [
+    "ok",
+    ""
+   ]
+  },
+  {
    "template": "$U",
    "strict": true,
    "dash": [

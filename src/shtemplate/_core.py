@@ -134,8 +134,10 @@ class _Evaluator:
         if op == "len":
             return [(str(len(self._unset(node) if value is None else value)), False)]
         if op in PATTERN_OPS:
-            base = self._unset(node) if value is None else value
-            return [(remove(base, self.pattern(node.word), op), False)]
+            # dash and bash both skip the pattern word of an unset variable.
+            if value is None:
+                return [(self._unset(node), False)]
+            return [(remove(value, self.pattern(node.word), op), False)]
         missing = value is None or (node.colon and value == "")
         if op == "+":
             return [] if missing else self.segments(node.word)
