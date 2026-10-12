@@ -10,6 +10,7 @@ from ._parser import parse
 from ._pattern import remove
 
 SAFE_MAX_OUTPUT = 1_000_000
+WORK_FACTOR = 10
 Segment = tuple[str, bool]
 
 
@@ -44,7 +45,9 @@ def expand(
         assigned: If given, receives the values assigned by ``:=`` and ``=``
             after a successful expansion. Pass ``env`` itself to update it.
         max_output: Raise ``UnsafeTemplateError`` if any expansion grows past
-            this many characters.
+            this many characters, or if a pattern removal would need more than
+            ten times this many matching steps (value length times pattern
+            length), which bounds the time an untrusted template can take.
 
     Returns:
         The expanded string.
@@ -137,7 +140,8 @@ class _Evaluator:
             # dash and bash both skip the pattern word of an unset variable.
             if value is None:
                 return [(self._unset(node), False)]
-            return [(remove(value, self.pattern(node.word), op), False)]
+            limit = None if self.max_output is None else self.max_output * WORK_FACTOR
+            return [(remove(value, self.pattern(node.word), op, limit), False)]
         missing = value is None or (node.colon and value == "")
         if op == "+":
             return [] if missing else self.segments(node.word)

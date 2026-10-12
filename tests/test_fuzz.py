@@ -107,3 +107,26 @@ def test_escape_survives_random_text(seed: int) -> None:
     for _ in range(500):
         text = random_template(rng)
         assert expand(escape(text), ENV, strict=True, safe=True) == text
+
+
+def _doubling(name: str, seed: str, steps: int) -> str:
+    text = f"${{{name}0:={seed}}}"
+    for i in range(1, steps + 1):
+        text += f"${{{name}{i}:=${{{name}{i - 1}}}${{{name}{i - 1}}}}}"
+    return text
+
+
+def test_safe_mode_bounds_pattern_work_from_short_templates() -> None:
+    template = _doubling("V", "a", 16) + _doubling("P", "*a", 14) + "${V16##${P14}}"
+    assert len(template) < 700
+    start = time.perf_counter()
+    with pytest.raises(ExpansionError, match="pattern matching would take more than"):
+        expand(template, {}, safe=True)
+    assert time.perf_counter() - start < 5
+
+
+def test_plain_text_parses_in_linear_time() -> None:
+    start = time.perf_counter()
+    assert expand("x" * 2_000_000, {}) == "x" * 2_000_000
+    assert expand("${A:-" + "y" * 1_000_000 + "}", {}) == "y" * 1_000_000
+    assert time.perf_counter() - start < 5

@@ -13,6 +13,8 @@ import string
 from collections.abc import Callable
 from functools import lru_cache
 
+from ._errors import UnsafeTemplateError
+
 Matcher = Callable[[str], bool]
 _STAR: Matcher = bool  # sentinel identity; never called
 
@@ -101,9 +103,14 @@ def _any(_: str) -> bool:
     return True
 
 
-@lru_cache(maxsize=512)
 def compile_pattern(pattern: str) -> tuple[Matcher, ...]:
     """Turn ``pattern`` into a tuple of single-character matchers and ``_STAR`` marks."""
+    if len(pattern) <= 1024:
+        return _compile_cached(pattern)
+    return _compile(pattern)
+
+
+def _compile(pattern: str) -> tuple[Matcher, ...]:
     items: list[Matcher] = []
     i = 0
     while i < len(pattern):
@@ -125,6 +132,9 @@ def compile_pattern(pattern: str) -> tuple[Matcher, ...]:
             items.append(_literal(char))
         i += 1
     return tuple(items)
+
+
+_compile_cached = lru_cache(maxsize=512)(_compile)
 
 
 def _closure(states: set[int], items: tuple[Matcher, ...]) -> set[int]:
@@ -159,9 +169,18 @@ def match_lengths(items: tuple[Matcher, ...], text: str) -> list[int]:
     return found
 
 
-def remove(value: str, pattern: str, op: str) -> str:
-    """Apply ``#``, ``##``, ``%`` or ``%%`` with ``pattern`` to ``value``."""
+def remove(value: str, pattern: str, op: str, work_limit: int | None = None) -> str:
+    """Apply ``#``, ``##``, ``%`` or ``%%`` with ``pattern`` to ``value``.
+
+    With ``work_limit``, raise :class:`UnsafeTemplateError` instead of matching
+    when ``len(value) * len(pattern)`` (the worst-case step count) exceeds it.
+    """
     items = compile_pattern(pattern)
+    if work_limit is not None and len(value) * max(len(items), 1) > work_limit:
+        raise UnsafeTemplateError(
+            f"pattern matching would take more than {work_limit} steps "
+            f"({len(value)} characters against {len(items)} pattern items)"
+        )
     if op.startswith("#"):
         lengths = match_lengths(items, value)
         if not lengths:
