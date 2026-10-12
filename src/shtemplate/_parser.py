@@ -8,22 +8,32 @@ found by recursive scanning and quotes inside a word are honoured.
 
 from __future__ import annotations
 
+import re
 from functools import lru_cache
 
 from ._errors import TemplateSyntaxError
-from ._nodes import NAME_REST, NAME_START, PATTERN_OPS, Node, Param, Parsed, Text, merge
+from ._nodes import NAME_START, PATTERN_OPS, Node, Param, Parsed, Text, merge
 
 MAX_DEPTH = 64
+CACHE_LIMIT = 4096
 _WORD_ESCAPES = frozenset('$`"\\}')
 _TOP_ESCAPES = frozenset("$`\\")
+_TOP_SPECIAL = re.compile(r"[$`\\]")
+_WORD_SPECIAL = re.compile(r"[}\\\"'$`]")
+_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
-@lru_cache(maxsize=512)
 def parse(template: str) -> Parsed:
-    """Parse ``template``; raise :class:`TemplateSyntaxError` when it is malformed."""
+    """Parse ``template`` (cached up to ``CACHE_LIMIT`` characters); raise on bad syntax."""
+    return _parse_cached(template) if len(template) <= CACHE_LIMIT else _parse(template)
+
+
+def _parse(template: str) -> Parsed:
     parser = _Parser(template)
-    nodes = parser.top()
-    return Parsed(nodes, tuple(parser.unsafe))
+    return Parsed(parser.top(), tuple(parser.unsafe))
+
+
+_parse_cached = lru_cache(maxsize=512)(_parse)
 
 
 class _Parser:
@@ -49,19 +59,27 @@ class _Parser:
             elif char == "$":
                 nodes.append(self._dollar(quoted=False, unquoted=False))
             else:
-                if char == "`":
-                    self.unsafe.append((self.pos, "backquote command substitution"))
-                nodes.append(Text(char))
-                self.pos += 1
+                nodes.append(Text(self._run(_TOP_SPECIAL)))
         return merge(nodes)
 
+    def _run(self, special: re.Pattern[str]) -> str:
+        """Consume one special character, or literal text up to the next special one."""
+        if self.text[self.pos] == "`":
+            self.unsafe.append((self.pos, "backquote command substitution"))
+        found = special.search(self.text, self.pos + 1)
+        end = found.start() if found else len(self.text)
+        if self.text[self.pos] in "`'":
+            end = self.pos + 1
+        chunk = self.text[self.pos : end]
+        self.pos = end
+        return chunk
+
     def _read_name(self) -> str:
-        start = self.pos
-        if self._peek() and self._peek() in NAME_START:
-            self.pos += 1
-            while self._peek() and self._peek() in NAME_REST:
-                self.pos += 1
-        return self.text[start : self.pos]
+        found = _NAME.match(self.text, self.pos)
+        if found is None:
+            return ""
+        self.pos = found.end()
+        return found.group()
 
     def _dollar(self, quoted: bool, unquoted: bool) -> Node:
         start = self.pos
@@ -151,10 +169,7 @@ class _Parser:
             elif char == "$":
                 nodes.append(self._dollar(literal, unquoted and not in_dq))
             else:
-                if char == "`":
-                    self.unsafe.append((self.pos, "backquote command substitution"))
-                nodes.append(Text(char, literal))
-                self.pos += 1
+                nodes.append(Text(self._run(_WORD_SPECIAL), literal))
 
     def _escape(self, unquoted: bool, in_dq: bool, start: int) -> list[Node]:
         nxt = self._peek(1)

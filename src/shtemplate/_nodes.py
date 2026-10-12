@@ -45,11 +45,22 @@ class Parsed:
 
 
 def merge(nodes: list[Node]) -> tuple[Node, ...]:
+    """Join runs of adjacent ``Text`` nodes that share the same ``quoted`` flag."""
     merged: list[Node] = []
+    run: list[str] = []
+    quoted = False
     for node in nodes:
-        last = merged[-1] if merged else None
-        if isinstance(node, Text) and isinstance(last, Text) and last.quoted == node.quoted:
-            merged[-1] = Text(last.value + node.value, node.quoted)
+        if isinstance(node, Text) and (not run or node.quoted == quoted):
+            run.append(node.value)
+            quoted = node.quoted
+            continue
+        if run:
+            merged.append(Text("".join(run), quoted))
+            run = []
+        if isinstance(node, Text):
+            run, quoted = [node.value], node.quoted
         else:
             merged.append(node)
+    if run:
+        merged.append(Text("".join(run), quoted))
     return tuple(merged)
