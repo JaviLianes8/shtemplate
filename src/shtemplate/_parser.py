@@ -8,52 +8,14 @@ found by recursive scanning and quotes inside a word are honoured.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from functools import lru_cache
 
 from ._errors import TemplateSyntaxError
+from ._nodes import NAME_REST, NAME_START, PATTERN_OPS, Node, Param, Parsed, Text, merge
 
-NAME_START = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")
-NAME_REST = NAME_START | frozenset("0123456789")
 MAX_DEPTH = 64
 _WORD_ESCAPES = frozenset('$`"\\}')
 _TOP_ESCAPES = frozenset("$`\\")
-PATTERN_OPS = frozenset({"#", "##", "%", "%%"})
-
-
-@dataclass(frozen=True)
-class Text:
-    """Literal characters. ``quoted`` marks pattern characters that match literally."""
-
-    value: str
-    quoted: bool = False
-
-
-@dataclass(frozen=True)
-class Param:
-    """One ``$NAME`` or ``${...}`` expansion.
-
-    ``op`` is ``""`` (plain), ``"len"``, one of ``- = ? +`` or a pattern operator.
-    ``quoted`` marks an expansion whose result must match literally in a pattern.
-    """
-
-    name: str
-    position: int
-    op: str = ""
-    colon: bool = False
-    word: tuple[Node, ...] = ()
-    quoted: bool = False
-
-
-Node = Text | Param
-
-
-@dataclass(frozen=True)
-class Parsed:
-    """A parsed template plus the positions of constructs that are never executed."""
-
-    nodes: tuple[Node, ...]
-    unsafe: tuple[tuple[int, str], ...] = field(default=())
 
 
 @lru_cache(maxsize=512)
@@ -62,17 +24,6 @@ def parse(template: str) -> Parsed:
     parser = _Parser(template)
     nodes = parser.top()
     return Parsed(nodes, tuple(parser.unsafe))
-
-
-def _merge(nodes: list[Node]) -> tuple[Node, ...]:
-    merged: list[Node] = []
-    for node in nodes:
-        last = merged[-1] if merged else None
-        if isinstance(node, Text) and isinstance(last, Text) and last.quoted == node.quoted:
-            merged[-1] = Text(last.value + node.value, node.quoted)
-        else:
-            merged.append(node)
-    return tuple(merged)
 
 
 class _Parser:
@@ -102,7 +53,7 @@ class _Parser:
                     self.unsafe.append((self.pos, "backquote command substitution"))
                 nodes.append(Text(char))
                 self.pos += 1
-        return _merge(nodes)
+        return merge(nodes)
 
     def _read_name(self) -> str:
         start = self.pos
@@ -188,7 +139,7 @@ class _Parser:
                 raise self._error("unterminated expansion: missing '}'", start)
             if char == "}" and not in_dq:
                 self.pos += 1
-                return _merge(nodes)
+                return merge(nodes)
             literal = unquoted and in_dq
             if char == "\\":
                 nodes.extend(self._escape(unquoted, in_dq, start))

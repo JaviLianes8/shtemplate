@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping, MutableMapping
 
 from ._errors import ParameterError, UnsafeTemplateError, UnsetVariableError
-from ._parser import PATTERN_OPS, Node, Param, Text, parse
+from ._nodes import PATTERN_OPS, Node, Param, Text
+from ._parser import parse
 from ._pattern import remove
 
 SAFE_MAX_OUTPUT = 1_000_000

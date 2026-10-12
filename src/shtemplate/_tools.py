@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from ._parser import Node, Param, parse
+from ._nodes import Node, Param
+from ._parser import parse
 
 _ESCAPES = {"\\": "\\\\", "$": "\\$", "`": "\\`"}
 
