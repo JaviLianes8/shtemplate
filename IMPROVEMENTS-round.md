@@ -7,7 +7,7 @@ Progress:
 - [x] Listing referenced variables and escaping helper
 - [x] CLI with [project.scripts]
 - [x] Docs: docstrings, GUIDE, README, CHANGELOG, version bump
-- [ ] Gates: ruff format, ruff check, mypy --strict, pytest
+- [x] Gates: ruff format, ruff check, mypy --strict, pytest
 - [ ] Contracts, oracle corpus (dash via WSL), fuzz, wheel e2e
 - [ ] Pull request opened
 - [ ] Independent review fixed, re-gated, trace guard clean
