@@ -17,3 +17,11 @@ pip install -r requirements-dev.txt
 - One logical change per commit, imperative subject line.
 
 Open an issue first if the change is large or shifts the public API.
+
+## Shell oracle
+
+`tests/data/oracle_corpus.json` records what dash and bash --posix print for each corpus
+template. Rebuild it with `python scripts/build_corpus.py` (needs WSL with dash) after
+changing the generator or the hand-written cases in `scripts/corpus_cases.py`.
+`scripts/e2e_wheel.py` builds the wheel, installs it in a throwaway virtual environment and
+drives the installed `shtemplate` command.
