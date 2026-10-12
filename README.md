@@ -51,8 +51,8 @@ expand("$(rm -rf ~)", {}, safe=True)  # UnsafeTemplateError: command substitutio
 ```
 
 `strict=True` behaves like `set -u`. `safe=True` is meant for templates you do not trust: it
-rejects `$(...)`, `$((...))` and backquotes and caps the output at one million characters
-(`max_output=` to change it).
+rejects `$(...)`, `$((...))` and backquotes, caps the output at one million characters
+(`max_output=` to change it) and bounds pattern matching work to match.
 
 ### Inspecting and escaping
 

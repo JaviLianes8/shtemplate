@@ -32,7 +32,10 @@ All notable changes to this project are documented here. The format follows
   from `string.Template`.
 - A corpus of more than 1,600 templates checked against dash and bash --posix.
 
-### Changed
+### Changed (breaking)
+
+These change the output of some 0.1.0 templates, most visibly ones with a backslash before
+`$` (such as Windows paths) or a `$` inside an operator word.
 
 - The word of `:-`, `-`, `:+`, `+`, `:?` and `?` is now expanded as in the shell
   (`${X:-$HOME/bin}` uses the value of `HOME`). In 0.1.0 it was taken literally; write

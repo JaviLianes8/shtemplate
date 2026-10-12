@@ -74,7 +74,8 @@ def test_strict_rejects_unset_references(template: str) -> None:
     with pytest.raises(UnsetVariableError) as caught:
         expand(template, {"A": ""}, strict=True)
     assert caught.value.name == "U"
-    assert template[caught.value.position] == "$"
+    position = caught.value.position
+    assert position is not None and template[position] == "$"
 
 
 @pytest.mark.parametrize("template", ["${U:-x}", "${U-x}", "${U:+x}", "${U+x}", "${U:=x}$U"])

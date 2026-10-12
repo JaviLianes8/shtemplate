@@ -84,6 +84,9 @@ If the variable is unset its pattern word is not expanded at all; dash and bash 
   `xdigit` and `punct`, which are ASCII, and `blank`, which is space and tab.
 - Matching runs as an automaton over all prefixes at once, in
   `O(len(value) * len(pattern))` time. No pattern can make it backtrack exponentially.
+  That product can still be large when both sides are long, so whenever `max_output` is set
+  (always in safe mode) a removal that would need more than ten times `max_output` steps
+  raises `UnsafeTemplateError` before matching starts.
 
 ## Decisions where a mapping is not a shell
 
@@ -104,20 +107,24 @@ If the variable is unset its pattern word is not expanded at all; dash and bash 
   `UnsafeTemplateError`. Escaped forms (`\$(`, `` \` ``) are plain text in both modes.
 - **Safe mode** also caps the output at one million characters (`max_output=` changes it,
   and works without safe mode too). Assignments can double a value at every step, so a short
-  template could otherwise produce gigabytes.
+  template could otherwise produce gigabytes. The same limit bounds pattern matching work, as
+  described above, so a few hundred bytes of template cannot keep the matcher busy for hours.
 - **Errors carry positions.** Every error has a zero-based `position` into the template:
   the `$` of the failing expansion, or the start of the malformed construct.
 
 ## Differences from a shell
 
-These are deliberate, and each one is listed in the oracle test with its reason.
+These are deliberate. The two that occur in the oracle corpus (`$-` and `${R#"$R"}`) are
+listed in `tests/test_oracle.py` with their reasons.
 
 - `$$` is a literal `$`, not a process id. A mapping has no process.
 - Positional and special parameters (`$1`, `${10}`, `$@`, `$*`, `$#`, `$?`, `$-`, `$!`,
   `$0`) do not exist in a mapping. Without braces they stay literal text; with braces
   (`${1}`, `${#}`) they are a `TemplateSyntaxError`.
-- `${V#"$P"}` matches the value of `P` literally, as POSIX requires and bash does. dash treats
-  a bracket expression coming from the quoted value as active.
+- `${V#"$P"}` matches the value of `P` literally, as POSIX requires and bash does. dash
+  still treats a bracket expression or a backslash coming from the quoted value as active.
+- `[^...]` negates, as in bash; dash treats `^` as an ordinary member.
+- `[[=a=]]` and `[[.a.]]` match `a`, as in bash; dash does not support these forms.
 - A backslash just before the closing brace in a word (`${X:-\\}`) is an escaped backslash
   followed by the closing brace. dash and bash both report a syntax error.
 - When a variable is set but empty, its pattern word is expanded (POSIX and dash); bash skips
@@ -129,8 +136,8 @@ These are deliberate, and each one is listed in the oracle test with its reason.
 
 - `tests/data/oracle_corpus.json`: more than 1,600 templates from `scripts/build_corpus.py`
   (hand-written generation rules with a fixed seed plus hand-written edge cases), with the
-  outputs of `dash` and `bash --posix` under WSL. Every case matches dash except the two
-  documented deviations above. A live test sends a fresh seeded batch to dash when WSL is
+  outputs of `dash` and `bash --posix` under WSL. Every case matches dash except `$-` and
+  `${R#"$R"}`, the two deviations above that the corpus exercises. A live test sends a fresh seeded batch to dash when WSL is
   available.
 - `tests/test_spec_examples.py` runs the informative examples of section 2.6.2, copied from
   the fetched standard into `tests/data/posix_2_6_2_examples.txt`.

@@ -8,5 +8,5 @@ function Step([string]$label, [scriptblock]$run) {
 
 Step "ruff format" { ruff format --check . }
 Step "ruff check" { ruff check . }
-Step "mypy" { mypy --strict src }
+Step "mypy" { mypy --strict src tests }
 Step "pytest" { pytest }
