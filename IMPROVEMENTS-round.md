@@ -10,7 +10,7 @@ Progress:
 - [x] Gates: ruff format, ruff check, mypy --strict, pytest
 - [ ] Contracts, oracle corpus (dash via WSL), fuzz done; wheel e2e waiting for a turn
 - [x] Pull request opened (#2)
-- [ ] Independent review fixed, re-gated, trace guard clean
+- [ ] Independent review fixed and re-gated (done); trace guard after e2e
 
 Ground truth: POSIX.1-2024 Shell Command Language, 2.6.2 Parameter Expansion and
 2.14 Pattern Matching Notation, fetched from
