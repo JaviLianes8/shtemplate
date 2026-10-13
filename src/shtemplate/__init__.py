@@ -17,7 +17,7 @@ from ._errors import (
 )
 from ._tools import escape, list_vars
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 __all__ = [
     "ExpansionError",

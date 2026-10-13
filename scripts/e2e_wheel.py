@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tarfile
 import tempfile
 import zipfile
 from pathlib import Path
@@ -49,6 +50,16 @@ def main() -> int:
         entry = [n for n in names if n.endswith("entry_points.txt")]
         text = zipfile.ZipFile(wheel).read(entry[0]).decode() if entry else ""
         check("console script declared", "shtemplate = shtemplate._cli:main" in text, text)
+
+        dist = str(work / "dist")
+        code, _, err = run(
+            [sys.executable, "-m", "build", "--sdist", "-o", dist, str(ROOT)], cwd=work
+        )
+        check("sdist builds", code == 0, err[-2000:])
+        with tarfile.open(next((work / "dist").glob("shtemplate-*.tar.gz"))) as sdist:
+            members = [n.split("/", 1)[-1] for n in sdist.getnames()]
+        check("sdist ships the manifest", "tests/upstream/MANIFEST.json" in members, members)
+        check("sdist has no spec page", not any(n.endswith(".html") for n in members), members)
 
         venv = work / "venv"
         check("venv created", run([sys.executable, "-m", "venv", str(venv)], cwd=work)[0] == 0)

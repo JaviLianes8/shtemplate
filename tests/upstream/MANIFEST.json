@@ -1,0 +1,11 @@
+{
+  "V3_chap02.html": {
+    "title": "POSIX.1-2024 (IEEE Std 1003.1-2024), Shell & Utilities, chapter 2 Shell Command Language",
+    "url": "https://pubs.opengroup.org/onlinepubs/9799919799/utilities/V3_chap02.html",
+    "revision": "POSIX.1-2024 online edition as served on 2026-10-13 (the page carries no revision id)",
+    "fetched": "2026-10-13",
+    "size": 357953,
+    "sha256": "0889867a53fe12508a71e8739ec23ecdddc95e6f67697c98e26acc8ff0ec1acd",
+    "licence": "(c) IEEE and The Open Group, all rights reserved; read online, not redistributed"
+  }
+}
