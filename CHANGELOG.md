@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-13
+
+### Changed
+
+- The excerpt of the POSIX standard is no longer committed or shipped in the sdist: the
+  cited example pairs stay in the tests, and `scripts/fetch_upstream.py` fetches the page,
+  checked against `tests/upstream/MANIFEST.json`, for the tests that prove each pair is on it.
+
 ## [0.2.0]
 
 ### Added

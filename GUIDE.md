@@ -139,8 +139,9 @@ listed in `tests/test_oracle.py` with their reasons.
   outputs of `dash` and `bash --posix` under WSL. Every case matches dash except `$-` and
   `${R#"$R"}`, the two deviations above that the corpus exercises. A live test sends a fresh seeded batch to dash when WSL is
   available.
-- `tests/test_spec_examples.py` runs the informative examples of section 2.6.2, copied from
-  the fetched standard into `tests/data/posix_2_6_2_examples.txt`.
+- `tests/test_spec_examples.py` runs the informative examples of section 2.6.2, cited from
+  the standard; with the page fetched by `scripts/fetch_upstream.py`, it also proves each
+  example is on the page.
 - `tests/test_fuzz.py` throws random templates at every entry point and checks that only
   `ExpansionError` is raised, that nothing hangs and that no process is ever started.
 

@@ -1,22 +1,19 @@
 """The informative examples of POSIX.1-2024 section 2.6.2, run through ``expand``.
 
-Every (command, output) pair below is copied from
+Every (command, output) pair below is a short example cited from
 https://pubs.opengroup.org/onlinepubs/9799919799/utilities/V3_chap02.html as
-fetched on 2026-10-12; the verbatim excerpt lives in
-``tests/data/posix_2_6_2_examples.txt`` and the first test proves each pair is
-in it. The assignments that set up each example are translated by hand into the
-``env`` mapping, and the ``echo`` argument becomes the template.
+fetched on 2026-10-12. The page itself is not committed: `python
+scripts/fetch_upstream.py` fetches it as pinned in tests/upstream/MANIFEST.json,
+and the tests that prove each pair is on the page skip until then. The
+assignments that set up each example are translated by hand into the ``env``
+mapping, and the ``echo`` argument becomes the template.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from shtemplate import ParameterError, expand
-
-EXCERPT = (Path(__file__).parent / "data" / "posix_2_6_2_examples.txt").read_text("utf-8")
 
 # (setup lines, echo line, output line, env used for expand)
 EXAMPLES: list[tuple[str, str, str, dict[str, str]]] = [
@@ -32,8 +29,8 @@ EXAMPLES: list[tuple[str, str, str, dict[str, str]]] = [
 ]
 
 
-def test_every_example_is_copied_from_the_fetched_excerpt() -> None:
-    lines = EXCERPT.splitlines()
+def test_every_example_is_on_the_fetched_page(posix_lines: list[str]) -> None:
+    lines = posix_lines
     for setup, command, output, _ in EXAMPLES:
         index = lines.index(command, lines.index(setup))
         assert lines[index + 1] == output
@@ -44,16 +41,20 @@ def test_spec_example(setup: str, command: str, output: str, env: dict[str, str]
     assert expand(command.removeprefix("echo "), env) == output
 
 
+def test_the_other_cited_examples_are_on_the_fetched_page(posix_lines: list[str]) -> None:
+    for cited in ["echo ${posix:?}", "sh: posix: parameter null or not set"]:
+        assert cited in posix_lines
+    for cited in ['${x#"*"}', '"${x#*}"', "echo ${3:+posix}"]:
+        assert cited in posix_lines
+
+
 def test_spec_colon_question_example_message() -> None:
-    assert "echo ${posix:?}" in EXCERPT
-    assert "sh: posix: parameter null or not set" in EXCERPT
     with pytest.raises(ParameterError) as caught:
         expand("${posix:?}", {})
     assert str(caught.value) == "posix: parameter null or not set"
 
 
 def test_spec_quoted_asterisk_is_literal_in_a_pattern() -> None:
-    assert '${x#"*"}' in EXCERPT and '"${x#*}"' in EXCERPT
     assert expand('${x#"*"}', {"x": "*star"}) == "star"
     assert expand('${x#"*"}', {"x": "plain"}) == "plain"
     assert expand("${x#*}", {"x": "plain"}) == "plain"
@@ -64,5 +65,4 @@ def test_positional_examples_are_out_of_scope() -> None:
     # The excerpt's ${1}, ${10} and ${3:+posix} examples use positional
     # parameters, which a mapping does not have: ${1} is rejected as a syntax
     # error and a bare $1 stays literal text.
-    assert "echo ${3:+posix}" in EXCERPT
     assert expand("$10", {}) == "$10"

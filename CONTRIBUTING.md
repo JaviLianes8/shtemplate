@@ -18,6 +18,9 @@ pip install -r requirements-dev.txt
 
 Open an issue first if the change is large or shifts the public API.
 
+The POSIX page behind the spec examples is not committed. Fetch it with
+`python scripts/fetch_upstream.py`; until then the tests that read it skip.
+
 ## Shell oracle
 
 `tests/data/oracle_corpus.json` records what dash and bash --posix print for each corpus
