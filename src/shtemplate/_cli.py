@@ -31,7 +31,7 @@ errors go to stderr and the exit status is 1.
 class _Parser(argparse.ArgumentParser):
     def error(self, message: str) -> NoReturn:
         self.print_usage(sys.stderr)
-        self.exit(1, f"{self.prog}: error: {message}\n")
+        self.exit(1, f"{self.prog}: error: invalid command line arguments\n")
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -74,7 +74,7 @@ def _environment(args: argparse.Namespace) -> dict[str, str]:
     for item in args.set:
         name, sep, value = item.partition("=")
         if not sep or not valid_name(name):
-            raise EnvFileError(f"--set expects NAME=VALUE with a valid name, got {item!r}")
+            raise EnvFileError("--set expects NAME=VALUE with a valid name")
         env[name] = value
     return env
 

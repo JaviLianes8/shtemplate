@@ -56,12 +56,12 @@ def test_plus_is_empty_when_unset() -> None:
 
 
 def test_colon_question_raises_when_unset() -> None:
-    with pytest.raises(ExpansionError, match="boom"):
+    with pytest.raises(ExpansionError, match="required parameter is missing"):
         expand("${X:?boom}", {})
 
 
 def test_colon_question_raises_when_empty() -> None:
-    with pytest.raises(ExpansionError, match="boom"):
+    with pytest.raises(ExpansionError, match="required parameter is missing"):
         expand("${X:?boom}", {"X": ""})
 
 
@@ -70,7 +70,7 @@ def test_question_keeps_empty_value() -> None:
 
 
 def test_question_without_message_has_default_text() -> None:
-    with pytest.raises(ExpansionError, match="parameter null or not set"):
+    with pytest.raises(ExpansionError, match="required parameter is missing"):
         expand("${X:?}", {})
 
 

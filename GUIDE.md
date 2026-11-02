@@ -96,9 +96,9 @@ If the variable is unset its pattern word is not expanded at all; dash and bash 
   `assigned=` to receive the assignments after a successful expansion; it is not touched when
   the expansion fails. Passing the same dict as `env` and `assigned` updates it in place.
 - **`:?` and `?`.** A shell prints the message and exits. `shtemplate` raises
-  `ParameterError` with `name`, `detail` and `position`; `str(error)` is `NAME: message`, or
-  `NAME: parameter null or not set` (`NAME: parameter not set` for `?`) when the word is empty,
-  matching dash.
+  `ParameterError` with `name`, `detail` and `position`; `str(error)` is
+  `NAME: required parameter is missing`. The sensitive `detail` attribute contains the
+  expanded word, or `parameter null or not set` (`parameter not set` for `?`) when empty.
 - **Strict mode** is `set -u`: a plain reference, `${#p}` or a pattern removal on an unset
   variable raises `UnsetVariableError`. The defaulting operators still work, and an empty
   value counts as set.
@@ -161,3 +161,20 @@ Both use ASCII names and `$$` for a literal dollar. `string.Template` has no def
 required values, conditional text, pattern removal or length, and gives backslash no meaning.
 Its identifier and delimiter can be customised by subclassing; `shtemplate` follows the shell
 grammar and is not configurable that way.
+
+## Upgrading from 0.2.1
+
+The public functions, defaults, exported error classes and operator results are unchanged.
+`ParameterError.detail` retains the expanded diagnostic word, but `str(error)` and CLI
+stderr now use `NAME: required parameter is missing` to avoid exposing environment secrets.
+Names longer than 80 characters are omitted from messages and retained in `error.name`.
+CLI usage errors do not echo arguments. `max_output` must be a non-negative integer or
+`None`: booleans and other types raise `TypeError`, negative integers raise `ValueError`.
+The pattern work budget now counts all pattern characters before compilation, including
+bracket members; patterns previously undercounted by 0.2.1 can reach the limit earlier.
+
+Messages raised by the library do not include environment values or required-operator
+words. Attributes such as `detail` remain sensitive application data. Variable identifiers
+(up to 80 characters) and filesystem paths can appear in diagnostics; do not use credentials
+as identifiers or paths. Exceptions from caller-provided mapping implementations propagate.
+Directly constructing an exception with a message is the caller's responsibility.

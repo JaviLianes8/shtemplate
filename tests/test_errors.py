@@ -56,17 +56,19 @@ def test_parameter_error_has_name_detail_and_position() -> None:
         expand("key=${TOKEN:?token is required}", {})
     error = caught.value
     assert (error.name, error.detail, error.position) == ("TOKEN", "token is required", 4)
-    assert str(error) == "TOKEN: token is required"
+    assert str(error) == "TOKEN: required parameter is missing"
 
 
 def test_parameter_error_message_is_expanded() -> None:
-    with pytest.raises(ParameterError, match="X: set X in prod"):
+    with pytest.raises(ParameterError) as caught:
         expand("${X:?set X in $ENV}", {"ENV": "prod"})
+    assert caught.value.detail == "set X in prod"
 
 
 def test_question_without_colon_default_text() -> None:
-    with pytest.raises(ParameterError, match="X: parameter not set"):
+    with pytest.raises(ParameterError) as caught:
         expand("${X?}", {})
+    assert caught.value.detail == "parameter not set"
 
 
 @pytest.mark.parametrize("template", ["$U", "${U}", "${#U}", "${U%a}", "${U##*}", "${A:-$U}"])

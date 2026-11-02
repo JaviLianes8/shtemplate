@@ -1,0 +1,187 @@
+# shtemplate 1.0.0 certification report
+
+Preparation for 1.0.0 from main `617a10d`. PyPI serves 0.2.1.
+The release date is 2026-11-02. Evidence was collected on 2026-11-02 UTC
+(2026-11-03 local time).
+
+Progress:
+- [x] API review, typed errors, examples and strict typing (items 1 to 5)
+- [x] Contract tests and seeded fuzzing (items 6 and 9)
+- [x] Current POSIX text fetched and real Bash output checked (item 7)
+- [x] README, GUIDE, CHANGELOG and distribution metadata (items 11 to 14)
+- [x] Final wheel, upgrade and interpreter checks (items 8 and 10)
+- [x] Mutation round (item 18)
+- [x] Final four gates (item 15)
+- [ ] Independent review (item 16)
+- [ ] Five independent QA lenses (item 19)
+- [ ] Merge and publication (item 17)
+
+## Scorecard
+
+| Item | Result and evidence |
+| --- | --- |
+| 1 | PASS: stable eight-name API, signatures/defaults retained; changes documented |
+| 2 | PASS: exact `__all__` contract; public imports in docs |
+| 3 | PASS: 15 doctest examples and executed README examples |
+| 4 | PASS: `mypy --strict src tests`, installed `py.typed` |
+| 5 | PASS: typed template errors, bounded/redacted diagnostics, documented limits |
+| 6 | PASS: all public names, operator states, CLI, errors and boundaries tested |
+| 7 | PASS: current POSIX fetch, 1,644 real Bash results and 400 fresh cases |
+| 8 | PASS: wheel in a fresh venv, real CLI, PyPI 0.2.1 upgrade |
+| 9 | PASS: seeded fuzz, escape properties, large-input and work-limit checks |
+| 10 | PASS: all 12 available CPython versions/builds, including embedded and free-threaded |
+| 11 | PASS: problem, comparison, quick start, absolute links, strict twine check |
+| 12 | PASS: dated 2026-11-02 section listing all changes from 0.2.1 |
+| 13 | PASS: 1.0.0, stable classifier, supported versions, license, URLs, no dependencies |
+| 14 | PASS: wheel and sdist contents inspected; LICENSE and type marker present |
+| 15 | PASS: four gates independently exit 0; strict test typing also passes |
+| 18 | PASS: 18 deliberate mutations, all caught |
+
+## API and behavior
+
+The eight exports remain `expand`, `escape`, `list_vars`, `ExpansionError`,
+`TemplateSyntaxError`, `UnsetVariableError`, `ParameterError` and `UnsafeTemplateError`.
+Signatures and defaults are retained. The expansion options are keyword-only.
+`__version__` and the distribution version are 1.0.0; `py.typed` is included.
+All 15 doctest examples pass; every public function and exception has executable examples. No documentation imports
+the public API from private modules. Source files are at most 200 lines.
+
+Intentional changes from the installed PyPI 0.2.1, all listed in CHANGELOG and GUIDE:
+
+- Required-parameter messages no longer print the expanded word. `detail`, `name` and
+  `position` retain their values. Variable names over 80 characters are omitted from
+  messages, but retained in `name`.
+- Invalid command-line arguments and `--set` values are not echoed in diagnostics.
+- `max_output` rejects booleans and non-integers with `TypeError`, and negatives with
+  `ValueError`, including empty input.
+- Malformed bracket patterns are scanned linearly. Pattern work accounting includes
+  bracket contents and is checked before compilation.
+
+Caller-supplied mapping exceptions propagate. Explicit exception construction remains
+the caller's responsibility. Diagnostic words are sensitive when read through `detail`;
+variable identifiers and filesystem paths must not be used to carry credentials.
+
+## Ground truth
+
+Fetched during this run:
+
+- [PyPI JSON](https://pypi.org/pypi/shtemplate/json): latest release 0.2.1.
+- [POSIX.1-2024 Shell Command Language](https://pubs.opengroup.org/onlinepubs/9799919799/utilities/V3_chap02.html):
+  357,953 bytes; SHA-256
+  `0889867a53fe12508a71e8739ec23ecdddc95e6f67697c98e26acc8ff0ec1acd`.
+  The current fetch matches the existing manifest. Specification tests verify that
+  the cited input/output pairs really occur in the page.
+
+`tests/upstream/MANIFEST.json` records URL, edition, date, size, hash and license.
+`scripts/fetch_upstream.py` reproduces the fetch; `SHTEMPLATE_UPSTREAM` selects an
+external directory. Fetched specification text is not committed or distributed.
+Those tests skip cleanly without the download and reject a changed hash.
+
+The existing corpus consists of generated templates and actual shell outputs, rather
+than copied third-party test data. Its generation rules and seed are in
+`scripts/build_corpus.py`. This run reproduced every recorded Bash result using the
+local Git Bash 5.3.9 executable (all 1,644 cases). Another 400 seeded combinations of all defaulting operators,
+strict mode and assignment visibility agreed with real Bash. WSL/dash is unavailable;
+the historical dash outputs remain checked with their documented deviations.
+`SHTEMPLATE_BASH` enables both live Bash tests. No template from an untrusted source
+is sent to the shell reference.
+
+## Contract and robustness evidence
+
+The suite pins all documented operator forms in set, empty and unset states, lazy words,
+assignment isolation, quoting, Unicode lengths, pattern direction and greediness,
+typed errors, positions, diagnostic privacy, output limits, API exports, version and
+type marker. CLI checks cover stdin, files, output bytes, environment precedence,
+UTF-8 failures, listing, strict/safe modes, errors and module execution.
+
+Fuzzing uses eight fixed seeds with 2,500 templates each and three further seeds with
+500 escaping round trips each. Process-start functions are replaced with failures
+while untrusted templates are expanded. Large plain text, nested input, exponential
+assignments and pattern-work limits have dedicated contracts. Unclosed bracket patterns
+are exercised at 1,000, 4,000 and 16,000 repetitions, with and without an inner class
+terminator. Another 80,000 seeded pattern-removal comparisons against the actual PyPI
+0.2.1 wheel agree exactly (seed 20261103). The timeout is 300 seconds per test.
+
+## Packaging and upgrade
+
+`python -m build` produced the sdist and built its wheel. Both passed
+`python -m twine check --strict`. The wheel has 17 members: package modules, `py.typed`,
+metadata, the console entry point and LICENSE. The sdist has 43 members: source,
+tests and their generated corpus, manifest, development scripts, docs, LICENSE and
+metadata. Neither includes a fetched specification, caches, scratch files or reports.
+There are no runtime dependencies. Metadata is Production/Stable with Python 3.10
+through 3.14, MIT, keywords and Homepage/Source/Issues/Changelog URLs.
+
+`scripts/e2e_wheel.py` builds the distributions, creates a new venv, installs actual
+PyPI 0.2.1 and runs `scripts/upgrade_probe.py` outside the repository. It upgrades that
+installation to the local wheel and verifies stable behavior and documented changes.
+The installed command is driven by subprocess for files, stdin, flags and failures;
+the import path is checked to be in the venv.
+
+## Interpreter matrix
+
+All 12 available CPython versions/builds passed. Launcher entries pointing to deleted
+installations are excluded; no discovered supported version remains untested.
+Duplicate installations of the same CPython version/build are represented once.
+The suite is extracted from the sdist without `src`, so it imports the installed wheel.
+Embedded runtimes are copied before their paths are configured; original installations
+are not modified. Every tested runtime also executes `python -m shtemplate` externally.
+
+
+| CPython | Installed-wheel suite | Module CLI |
+| --- | --- | --- |
+| 3.13.2 | 296 passed, 4 skipped | PASS |
+| 3.12.10 | 296 passed, 4 skipped | PASS |
+| 3.11.9 | 296 passed, 4 skipped | PASS |
+| 3.10.11 | 296 passed, 4 skipped | PASS |
+| 3.14.10t | 296 passed, 4 skipped | PASS |
+| 3.13.18 | 296 passed, 4 skipped | PASS |
+| 3.14.10 | 296 passed, 4 skipped | PASS |
+| 3.12.16 | 296 passed, 4 skipped | PASS |
+| 3.11.18 | 296 passed, 4 skipped | PASS |
+| 3.10.22 | 296 passed, 4 skipped | PASS |
+| 3.14.6 | 296 passed, 4 skipped | PASS |
+| 3.11.11 | 296 passed, 4 skipped | PASS |
+
+The four skips are the separately executed wheel e2e and two live Bash tests, plus
+unavailable WSL/dash. No 3.13 free-threaded runtime is installed here.
+
+## Mutation round
+
+All 18 deliberate bugs were killed on the final source, one per scratch copy.
+The release source was never modified. The work-limit mutant first hit the 300-second
+fuzz timeout; its focused bracket-budget contract also fails immediately.
+
+| # | Mutation | Contract that failed |
+| --- | --- | --- |
+| 1 | Ignore empty values in colon operators | `test_documented_forms` (`:-`) |
+| 2 | Reverse alternate-word selection | `test_documented_forms` (`:+`) |
+| 3 | Drop assignment export | `test_assigned_collects_the_assignments` |
+| 4 | Ignore assignment overlay on lookup | `test_readme_example` (assignment visibility) |
+| 5 | Add one to parameter length | `test_documented_forms` (length) |
+| 6 | Disable strict mode | `test_errors_go_to_stderr_with_status_1` |
+| 7 | Disable unsafe-construct rejection | `test_errors_go_to_stderr_with_status_1` |
+| 8 | Reject output exactly at its limit | `test_max_output_applies_without_safe_mode` |
+| 9 | Wrong negative-limit error class | `test_output_limit_rejects_negative_numbers_even_for_empty_input` |
+| 10 | Print the sensitive required word | `test_errors_go_to_stderr_with_status_1` |
+| 11 | Omit a name at 80 rather than 81 characters | `test_error_name_display_boundary` |
+| 12 | Swap shortest and longest prefix removal | `test_readme_example` (pattern removals) |
+| 13 | Leave one extra suffix character | `test_documented_forms` (suffix removal) |
+| 14 | Disable pattern-work limit | `test_pattern_work_budget_counts_bracket_members` |
+| 15 | Reverse variable-list order | `test_list_vars` |
+| 16 | Do not escape dollar signs | `test_list_vars_and_escape_promises` |
+| 17 | Reject nesting at 64 rather than 65 | `test_nesting_depth_is_bounded` |
+| 18 | Return success for CLI errors | `test_errors_go_to_stderr_with_status_1` |
+
+## Gates
+
+`ruff format --check .`, `ruff check .`, `mypy --strict src` and
+`mypy --strict src tests` pass, each command run on its own. With the fetched POSIX
+page, `SHTEMPLATE_BASH` and `SHTEMPLATE_E2E=1`, the final suite is **299 passed,
+1 skipped** in 222.79 seconds. The only skip is WSL/dash, unavailable on this machine.
+The wheel upgrade, live Bash corpus and fresh seeded Bash comparisons all passed.
+
+## Remaining certification stages
+
+Items 16 and 19 have no verdict yet. The independent review, lenses a through e,
+merge and publication are separate stages; this report does not mark them passed.

@@ -48,6 +48,7 @@ def expand(
             this many characters, or if a pattern removal would need more than
             ten times this many matching steps (value length times pattern
             length), which bounds the time an untrusted template can take.
+            Must be a non-negative integer or ``None``; booleans are rejected.
 
     Returns:
         The expanded string.
@@ -58,6 +59,8 @@ def expand(
         ParameterError: A ``:?`` or ``?`` expansion found its variable missing.
         UnsafeTemplateError: Safe mode rejected the template or the output limit
             was reached.
+        TypeError: ``max_output`` is not an integer or ``None``.
+        ValueError: ``max_output`` is negative.
 
     Examples:
         >>> expand("${USER:-guest}@${HOST:-localhost}", {"USER": "ada"})
@@ -67,6 +70,11 @@ def expand(
         >>> expand("${URL#*://}", {"URL": "https://example.org"})
         'example.org'
     """
+    if max_output is not None:
+        if isinstance(max_output, bool) or not isinstance(max_output, int):
+            raise TypeError("max_output must be an integer or None")
+        if max_output < 0:
+            raise ValueError("max_output must be non-negative")
     parsed = parse(template)
     if safe:
         if parsed.unsafe:

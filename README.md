@@ -1,5 +1,7 @@
 # shtemplate
 
+[![Lianes8 Certified](https://lianes8studio.com/certified/lianes8-certified-badge.svg)](https://lianes8studio.com/certified)
+
 POSIX shell parameter expansion (`$VAR`, `${VAR:-default}`, `${VAR%pattern}`, ...) over
 any mapping, with a command line tool. Typed, safe for untrusted templates, zero dependencies.
 
@@ -29,7 +31,7 @@ expand("${FILE%.gz} ${FILE%%.*} ${FILE#*.} ${FILE##*.}", values)  # "report.tar 
 expand("${#USER}", values)  # "3"
 
 # Required values raise a typed error that names the variable
-expand("${TOKEN:?token is required}", values)  # ParameterError: TOKEN: token is required
+expand("${TOKEN:?}", values)  # ParameterError: TOKEN: required parameter is missing
 
 # Escapes: \$ and $$ are a literal dollar
 expand("price \\$5 or $$5", values)  # "price $5 or $5"
@@ -100,8 +102,8 @@ expand("${PORT:=8080} on $PORT", {}, assigned=sink)  # "8080 on 8080"; sink == {
 
 `word` is expanded only when it is needed, so it may contain other expansions. Patterns use
 shell notation: `*`, `?`, `[a-z]`, `[!...]`, `[[:alpha:]]` and backslash or quotes for literal
-characters. Malformed templates raise `TemplateSyntaxError` with the position. Every error is an
-`ExpansionError`, which is a `ValueError`. The [GUIDE](GUIDE.md) covers the exact rules, the
+characters. Malformed templates raise `TemplateSyntaxError` with the position. Every template error is an
+`ExpansionError`, which is a `ValueError`. The [GUIDE](https://github.com/JaviLianes8/shtemplate/blob/main/GUIDE.md) covers the exact rules, the
 design decisions and the differences from the shell and from `string.Template`.
 
 ## Command line
@@ -122,14 +124,23 @@ exit status 1. `python -m shtemplate` works too.
 
 Python's `string.Template` understands `$NAME` and `${NAME}` only: no defaults, no required
 values, no pattern removal. `os.path.expandvars` silently leaves unknown names in place and
-reads only `os.environ`. `shtemplate` gives you the shell's full parameter expansion as a pure
+reads only `os.environ`. `shtemplate` gives you the documented subset of shell parameter expansion as a pure
 function over a mapping you choose, with typed errors, a strict mode, a safe mode for
 untrusted input and a CLI that does what `envsubst` does, plus defaults, required values and
 pattern removal.
 
+## Development
+
+Install `.[dev]` and run `scripts/check.ps1`. Fetch the optional specification with
+`python scripts/fetch_upstream.py`; `SHTEMPLATE_UPSTREAM` can select its local directory.
+Set `SHTEMPLATE_E2E=1` for wheel, CLI and PyPI upgrade checks. `TEMP` and `TMP` select
+the scratch directory; pass `pytest --basetemp` explicitly for test files.
+See the [CHANGELOG](https://github.com/JaviLianes8/shtemplate/blob/main/CHANGELOG.md)
+for changes and upgrade notes.
+
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/JaviLianes8/shtemplate/blob/main/LICENSE).
 
 ## Links
 

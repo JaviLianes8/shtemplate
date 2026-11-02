@@ -6,6 +6,38 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-02
+
+### Stable
+
+- The eight public names, keyword-only expansion options, mapping isolation,
+  lazy operator words, assignment collection and command line interface are stable.
+- Python 3.10 through 3.14, including free-threaded 3.14; no runtime dependencies.
+
+### Changed
+
+- `ParameterError` messages now say `NAME: required parameter is missing` instead
+  of printing the expanded word, which can contain secrets. The complete word is
+  still available explicitly as `error.detail`, including default shell messages.
+- Error messages omit variable names longer than 80 characters; `error.name`
+  retains the complete name. CLI usage and invalid `--set` diagnostics no longer
+  echo arguments, which can contain credentials.
+- `max_output` now rejects booleans and non-integers with `TypeError`, and negative
+  integers with `ValueError`, consistently even for empty templates.
+
+### Fixed
+
+- Malformed patterns containing repeated unclosed brackets or character classes
+  are scanned in linear time rather than repeatedly scanning their remaining tail.
+- The pattern work limit counts all pattern characters, including bracket members,
+  before compilation; long bracket expressions can now reach the limit earlier.
+
+### Added
+
+- Runnable examples for every public error, stronger privacy and boundary contracts,
+  current specification checks, and installed-wheel upgrade checks from 0.2.1.
+
+
 ## [0.2.1] - 2026-10-13
 
 ### Changed
