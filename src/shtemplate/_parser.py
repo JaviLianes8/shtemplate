@@ -1,10 +1,4 @@
-"""Parse a template into literal text and parameter-expansion nodes.
-
-The template is read like the body of an unquoted shell here-document: only
-``$``, backquote and backslash are special at the top level. Operator words are
-read with the rules of POSIX.1-2024 2.6.2 and 2.2.3, so the closing brace is
-found by recursive scanning and quotes inside a word are honoured.
-"""
+"""Parse here-document text and nested words using POSIX.1-2024 2.6.2 and 2.2.3."""
 
 from __future__ import annotations
 
@@ -13,10 +7,12 @@ from functools import lru_cache
 
 from ._errors import TemplateSyntaxError
 from ._nodes import NAME_START, PATTERN_OPS, Node, Param, Parsed, Text, merge
+from ._validation import text_value
 
 MAX_DEPTH = 64
 CACHE_LIMIT = 4096
 _WORD_ESCAPES = frozenset('$`"\\}')
+_DQ_ESCAPES = _WORD_ESCAPES - {"}"}
 _TOP_ESCAPES = frozenset("$`\\")
 _TOP_SPECIAL = re.compile(r"[$`\\]")
 _WORD_SPECIAL = re.compile(r"[}\\\"'$`]")
@@ -25,6 +21,7 @@ _NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 def parse(template: str) -> Parsed:
     """Parse ``template`` (cached up to ``CACHE_LIMIT`` characters); raise on bad syntax."""
+    template = text_value(template, "template must be a string")
     return _parse_cached(template) if len(template) <= CACHE_LIMIT else _parse(template)
 
 
@@ -66,10 +63,11 @@ class _Parser:
         """Consume one special character, or literal text up to the next special one."""
         if self.text[self.pos] == "`":
             self.unsafe.append((self.pos, "backquote command substitution"))
-        found = special.search(self.text, self.pos + 1)
-        end = found.start() if found else len(self.text)
         if self.text[self.pos] in "`'":
             end = self.pos + 1
+        else:
+            found = special.search(self.text, self.pos + 1)
+            end = found.start() if found else len(self.text)
         chunk = self.text[self.pos : end]
         self.pos = end
         return chunk
@@ -181,7 +179,7 @@ class _Parser:
         if unquoted and not in_dq:
             self.pos += 2
             return [Text(nxt, True)]
-        if nxt in _WORD_ESCAPES:
+        if nxt in (_DQ_ESCAPES if unquoted and in_dq else _WORD_ESCAPES):
             self.pos += 2
             return [Text(nxt, unquoted)]
         self.pos += 1

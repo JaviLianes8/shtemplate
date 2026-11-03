@@ -69,6 +69,11 @@ operators, so their word is read as unquoted shell text:
   `${V#$PREFIX}` treats a `*` in `PREFIX` as a wildcard. Write `${V#"$PREFIX"}` to match it
   literally.
 - Words nested inside a pattern word follow the same unquoted rules.
+- Inside double quotes, backslash only escapes `$`, backquote, `"`, backslash and
+  newline. Before `}` it stays literal: `${V#"a\}b"}` removes `a\}b`, not `a}b`.
+- Assignment words undergo quote removal before their values are substituted.
+  `${V##${X="*"}}` therefore supplies an active wildcard, just like `${V##$X}` after
+  that assignment. Quoting the enclosing expansion (`${V##"$X"}`) makes it literal.
 
 If the variable is unset its pattern word is not expanded at all; dash and bash agree.
 
@@ -78,7 +83,9 @@ If the variable is unset its pattern word is not expanded at all; dash and bash 
 - `[abc]`, ranges `[a-z]`, negation with `[!...]` (also `[^...]`, like bash), a leading `]`
   as a member (`[]a]`), character classes `[[:alpha:]]` (`alnum alpha blank cntrl digit
   graph lower print punct space upper xdigit`) and the one-character forms `[=a=]` and
-  `[.a.]`. An unknown class matches nothing. A `[` that does not start a valid bracket
+  `[.a.]` inside a bracket expression. Collating symbols can be range endpoints:
+  `[[.a.]-[.c.]]` matches `a`, `b` or `c`. An unknown class matches nothing.
+  A `[` that does not start a valid bracket
   expression matches itself.
 - Ranges compare code points. Classes use Python's Unicode string methods, except `digit`,
   `xdigit` and `punct`, which are ASCII, and `blank`, which is space and tab.
@@ -96,21 +103,29 @@ If the variable is unset its pattern word is not expanded at all; dash and bash 
   `assigned=` to receive the assignments after a successful expansion; it is not touched when
   the expansion fails. Passing the same dict as `env` and `assigned` updates it in place.
 - **`:?` and `?`.** A shell prints the message and exits. `shtemplate` raises
-  `ParameterError` with `name`, `detail` and `position`; `str(error)` is `NAME: message`, or
-  `NAME: parameter null or not set` (`NAME: parameter not set` for `?`) when the word is empty,
-  matching dash.
+  `ParameterError` with `name`, `detail` and `position`; `str(error)` is
+  `NAME: required parameter is missing`. The sensitive `detail` attribute contains the
+  expanded word, or `parameter null or not set` (`parameter not set` for `?`) when empty.
 - **Strict mode** is `set -u`: a plain reference, `${#p}` or a pattern removal on an unset
   variable raises `UnsetVariableError`. The defaulting operators still work, and an empty
   value counts as set.
 - **Command substitution and arithmetic** (`$(...)`, backquotes, `$((...))`) are never
-  executed. By default they are left in the output as literal text. In safe mode they raise
-  `UnsafeTemplateError`. Escaped forms (`\$(`, `` \` ``) are plain text in both modes.
+  executed. Their delimiters remain in the output, but parameter expansions inside them
+  still run: `expand('$(echo $X)', {'X': 'changed'})` gives `$(echo changed)`.
+  Nested assignments and errors also apply: `$(echo ${X:=changed})` assigns `X` in the
+  expansion overlay and any `assigned` sink after success. In safe mode these constructs
+  raise `UnsafeTemplateError`. Escaping a delimiter (`\$(`, `` \` ``) makes that delimiter
+  plain text in both modes; separately escape any nested `$` to preserve it too.
 - **Safe mode** also caps the output at one million characters (`max_output=` changes it,
   and works without safe mode too). Assignments can double a value at every step, so a short
   template could otherwise produce gigabytes. The same limit bounds pattern matching work, as
   described above, so a few hundred bytes of template cannot keep the matcher busy for hours.
-- **Errors carry positions.** Every error has a zero-based `position` into the template:
-  the `$` of the failing expansion, or the start of the malformed construct.
+  Cumulative output is checked after each sibling expansion, before evaluating the next;
+  assignments are exported only after the complete expansion succeeds.
+- **Errors carry optional positions.** Each `ExpansionError` has `position: int | None`:
+  the zero-based `$` of the failing expansion or start of the malformed construct when
+  known. Output-limit and pattern-work-limit errors use `None`, as do error constructors
+  when no position is supplied.
 
 ## Differences from a shell
 
@@ -125,8 +140,9 @@ listed in `tests/test_oracle.py` with their reasons.
   still treats a bracket expression or a backslash coming from the quoted value as active.
 - `[^...]` negates, as in bash; dash treats `^` as an ordinary member.
 - `[[=a=]]` and `[[.a.]]` match `a`, as in bash; dash does not support these forms.
-- A backslash just before the closing brace in a word (`${X:-\\}`) is an escaped backslash
-  followed by the closing brace. dash and bash both report a syntax error.
+- An escaped backslash before the closing brace (`${X:-\\}`) produces one backslash.
+  Git for Windows Bash 5.3.9 agrees when the here-document is read from stdin or a script
+  file with `--posix`; this is not a general Bash syntax-error difference.
 - When a variable is set but empty, its pattern word is expanded (POSIX and dash); bash skips
   it.
 - Lengths and `?` count characters (Unicode code points), as bash does; dash counts bytes.
@@ -161,3 +177,32 @@ Both use ASCII names and `$$` for a literal dollar. `string.Template` has no def
 required values, conditional text, pattern removal or length, and gives backslash no meaning.
 Its identifier and delimiter can be customised by subclassing; `shtemplate` follows the shell
 grammar and is not configurable that way.
+
+## Upgrading from 0.2.1
+
+The public functions, defaults, exported error classes and operator results are unchanged.
+`ParameterError.detail` retains the expanded diagnostic word, but `str(error)` and CLI
+stderr now use `NAME: required parameter is missing` to avoid exposing environment secrets.
+Names longer than 80 characters are omitted from messages and retained in `error.name`.
+CLI usage errors do not echo arguments. `max_output` must be a non-negative integer or
+`None`: booleans and other types raise `TypeError`, negative integers raise `ValueError`.
+`expand`, `list_vars` and `escape` require string text. `env` must be a mapping or `None`,
+`assigned` a mutable mapping or `None`, and `strict` and `safe` must be booleans.
+Fetched environment values must be strings, including empty strings; `None` is not an
+unset value. Unused mapping values are not inspected. Invalid types consistently raise
+`TypeError` without echoing their contents. String and integer subclasses are normalized
+to their underlying base values, ignoring overridden lengths, comparisons and conversions;
+unhashable string subclasses are accepted too.
+The pattern work budget now counts all pattern characters before compilation, including
+bracket members; patterns previously undercounted by 0.2.1 can reach the limit earlier.
+
+Messages raised by the library do not include environment values or required-operator
+words. Attributes such as `detail` remain sensitive application data. Variable identifiers
+(up to 80 characters) and filesystem paths (up to 200 characters) can appear in diagnostics;
+longer paths are omitted. Do not use credentials
+as identifiers or paths. Exceptions from caller-provided mapping implementations propagate.
+Directly constructing an exception with a message is the caller's responsibility.
+
+`expand(escape(text)) == text` holds for every Python string, including NUL. A shell
+here-document comparison only applies to text representable by the receiving shell,
+explicitly excluding NUL; `escape` is not an arbitrary-string shell transport.

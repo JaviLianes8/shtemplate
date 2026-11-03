@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 import urllib.request
 from pathlib import Path
@@ -19,6 +20,8 @@ FOLDER = Path(__file__).resolve().parents[1] / "tests" / "upstream"
 
 def main() -> int:
     manifest = json.loads((FOLDER / "MANIFEST.json").read_text(encoding="utf-8"))
+    target = Path(os.environ.get("SHTEMPLATE_UPSTREAM", str(FOLDER)))
+    target.mkdir(parents=True, exist_ok=True)
     failed = 0
     for name, entry in manifest.items():
         with urllib.request.urlopen(entry["url"], timeout=60) as response:
@@ -28,7 +31,7 @@ def main() -> int:
             print(f"{name}: got {len(body)} bytes, sha256 {digest}; manifest differs")
             failed += 1
             continue
-        (FOLDER / name).write_bytes(body)
+        (target / name).write_bytes(body)
         print(f"{name}: ok")
     return 1 if failed else 0
 

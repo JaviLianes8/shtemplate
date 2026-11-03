@@ -14,6 +14,7 @@ Each result is ``("ok", output)`` or ``("error", "")``.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from collections.abc import Mapping, Sequence
@@ -83,11 +84,16 @@ def parse_output(raw: str, count: int) -> list[Result]:
 def run_shell(shell: str, cases: Sequence[Case], timeout: float = 300) -> list[Result]:
     """Run every case through ``shell`` ("dash" or "bash") inside WSL."""
     script = build_script(cases)
+    command = ["wsl", "-e", "env", "-i", "LC_ALL=C.UTF-8", "PATH=/usr/bin:/bin", *_SHELLS[shell]]
+    if shell == "bash" and (binary := os.environ.get("SHTEMPLATE_BASH")):
+        command = [binary, "--noprofile", "--norc", "--posix", "-s"]
+        script = "export LC_ALL=C.UTF-8\n" + script
     done = subprocess.run(
-        ["wsl", "-e", "env", "-i", "LC_ALL=C.UTF-8", "PATH=/usr/bin:/bin", *_SHELLS[shell]],
+        command,
         input=script.encode("utf-8"),
         capture_output=True,
         timeout=timeout,
         check=False,
+        env={key: value for key, value in os.environ.items() if key in {"SYSTEMROOT", "PATH"}},
     )
     return parse_output(done.stdout.decode("utf-8", errors="surrogateescape"), len(cases))

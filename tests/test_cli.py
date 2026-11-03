@@ -71,7 +71,7 @@ def test_list_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     ("argv", "stdin", "message"),
     [
         (["-i", "--strict"], "$NOPE", "undefined variable: NOPE"),
-        (["-i"], "${NOPE:?is required}", "NOPE: is required"),
+        (["-i"], "${NOPE:?is required}", "NOPE: required parameter is missing"),
         (["-i"], "${A", "unterminated"),
         (["--safe"], "$(id)", "command substitution is not allowed"),
         (["-s", "novalue"], "x", "--set expects NAME=VALUE"),
@@ -97,7 +97,7 @@ def test_bad_env_file_reports_file_and_line(
 
 def test_usage_errors_exit_1(monkeypatch: pytest.MonkeyPatch) -> None:
     code, _, err = run(monkeypatch, ["--no-such-flag"])
-    assert code == 1 and "unrecognized arguments" in err
+    assert code == 1 and "invalid command line arguments" in err
 
 
 def test_help_has_runnable_examples(monkeypatch: pytest.MonkeyPatch) -> None:

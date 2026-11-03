@@ -2,7 +2,7 @@
 
 Every (command, output) pair below is a short example cited from
 https://pubs.opengroup.org/onlinepubs/9799919799/utilities/V3_chap02.html as
-fetched on 2026-10-12. The page itself is not committed: `python
+re-fetched on 2026-11-03. The page itself is not committed: `python
 scripts/fetch_upstream.py` fetches it as pinned in tests/upstream/MANIFEST.json,
 and the tests that prove each pair is on the page skip until then. The
 assignments that set up each example are translated by hand into the ``env``
@@ -51,7 +51,8 @@ def test_the_other_cited_examples_are_on_the_fetched_page(posix_lines: list[str]
 def test_spec_colon_question_example_message() -> None:
     with pytest.raises(ParameterError) as caught:
         expand("${posix:?}", {})
-    assert str(caught.value) == "posix: parameter null or not set"
+    assert caught.value.detail == "parameter null or not set"
+    assert caught.value.name == "posix"
 
 
 def test_spec_quoted_asterisk_is_literal_in_a_pattern() -> None:

@@ -21,7 +21,13 @@ def run(
     cmd: list[str], *, stdin: str = "", env: dict[str, str] | None = None, cwd: Path
 ) -> tuple[int, str, str]:
     done = subprocess.run(
-        cmd, input=stdin.encode("utf-8"), capture_output=True, env=env, cwd=cwd, check=False
+        cmd,
+        input=stdin.encode("utf-8"),
+        capture_output=True,
+        env=env,
+        cwd=cwd,
+        check=False,
+        timeout=120,
     )
     return done.returncode, done.stdout.decode("utf-8"), done.stderr.decode("utf-8")
 
@@ -42,6 +48,13 @@ def main() -> int:
         check("wheel builds", code == 0, err[-2000:])
         wheel = next((work / "dist").glob("shtemplate-*.whl"))
         names = zipfile.ZipFile(wheel).namelist()
+        check("wheel includes LICENSE", any(n.endswith("/LICENSE") for n in names), names)
+        metadata = zipfile.ZipFile(wheel).read("shtemplate-1.0.0.dist-info/METADATA").decode()
+        check("wheel stable metadata", "Development Status :: 5 - Production/Stable" in metadata)
+        check(
+            "wheel has no runtime requirements",
+            "Requires-Dist:" not in metadata.split("Provides-Extra:")[0],
+        )
         check("wheel ships py.typed", "shtemplate/py.typed" in names, names)
         check(
             "wheel has no tests or scripts",
@@ -60,20 +73,41 @@ def main() -> int:
             members = [n.split("/", 1)[-1] for n in sdist.getnames()]
         check("sdist ships the manifest", "tests/upstream/MANIFEST.json" in members, members)
         check("sdist has no spec page", not any(n.endswith(".html") for n in members), members)
+        check("sdist includes LICENSE", "LICENSE" in members)
+        check(
+            "sdist excludes scratch and reports",
+            not any(
+                any(
+                    part in n
+                    for part in (".venv", "__pycache__", ".pytest_cache", "CERT-", "IMPROVEMENTS")
+                )
+                for n in members
+            ),
+            members,
+        )
 
         venv = work / "venv"
         check("venv created", run([sys.executable, "-m", "venv", str(venv)], cwd=work)[0] == 0)
         bindir = venv / ("Scripts" if os.name == "nt" else "bin")
         python = str(bindir / "python")
+        probe = work / "upgrade_probe.py"
+        probe.write_bytes((ROOT / "scripts" / "upgrade_probe.py").read_bytes())
+        code, _, err = run([python, "-m", "pip", "install", "shtemplate==0.2.1"], cwd=work)
+        check("PyPI 0.2.1 installs", code == 0, err[-2000:])
+        code, out, err = run([python, str(probe), "0.2.1"], cwd=work)
+        check("PyPI behavior before upgrade", code == 0, out + err)
         code, _, err = run(
-            [python, "-m", "pip", "install", "--no-index", "--no-deps", str(wheel)], cwd=work
+            [python, "-m", "pip", "install", "--upgrade", "--no-index", "--no-deps", str(wheel)],
+            cwd=work,
         )
         check("wheel installs", code == 0, err[-2000:])
+        code, out, err = run([python, str(probe), "1.0.0"], cwd=work)
+        check("documented upgrade behavior", code == 0, out + err)
         tool = str(bindir / "shtemplate")
         base = {"PATH": os.environ.get("PATH", ""), "SYSTEMROOT": os.environ.get("SYSTEMROOT", "")}
 
         code, out, _ = run([tool, "--version"], cwd=work, env=base)
-        check("--version", code == 0 and out.strip().startswith("shtemplate 0.2"), out)
+        check("--version", code == 0 and out.strip() == "shtemplate 1.0.0", out)
         code, out, _ = run([tool, "--help"], cwd=work, env=base)
         check("--help shows examples", code == 0 and "examples:" in out, out)
         env = {**base, "SHT_USER": "ada"}

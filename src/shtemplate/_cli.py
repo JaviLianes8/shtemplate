@@ -31,7 +31,7 @@ errors go to stderr and the exit status is 1.
 class _Parser(argparse.ArgumentParser):
     def error(self, message: str) -> NoReturn:
         self.print_usage(sys.stderr)
-        self.exit(1, f"{self.prog}: error: {message}\n")
+        self.exit(1, f"{self.prog}: error: invalid command line arguments\n")
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -60,7 +60,7 @@ def _read(path: str) -> str:
         data, label = sys.stdin.buffer.read(), "stdin"
     else:
         with open(path, "rb") as handle:
-            data, label = handle.read(), path
+            data, label = handle.read(), _label(path)
     try:
         return data.decode("utf-8")
     except UnicodeDecodeError as exc:
@@ -70,11 +70,11 @@ def _read(path: str) -> str:
 def _environment(args: argparse.Namespace) -> dict[str, str]:
     env: dict[str, str] = {} if args.ignore_environment else dict(os.environ)
     for path in args.env_file:
-        env.update(parse_env(_read(path), path))
+        env.update(parse_env(_read(path), _label(path)))
     for item in args.set:
         name, sep, value = item.partition("=")
         if not sep or not valid_name(name):
-            raise EnvFileError(f"--set expects NAME=VALUE with a valid name, got {item!r}")
+            raise EnvFileError("--set expects NAME=VALUE with a valid name")
         env[name] = value
     return env
 
@@ -90,6 +90,18 @@ def _write(text: str, output: str | None) -> None:
             handle.write(data)
 
 
+def _label(path: str) -> str:
+    return path if len(path) <= 200 else "<path omitted>"
+
+
+def _diagnostic(error: Exception) -> str:
+    if isinstance(error, OSError):
+        label = _label(str(error.filename)) if error.filename is not None else "filesystem"
+        reason = os.strerror(error.errno) if error.errno is not None else "I/O failure"
+        return f"{label}: {reason}"
+    return str(error)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the command line tool; return the exit status."""
     parser = _build_parser()
@@ -103,6 +115,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = expand(template, _environment(args), strict=args.strict, safe=args.safe)
         _write(result, args.output)
     except (ExpansionError, EnvFileError, OSError, UnicodeError) as exc:
-        print(f"shtemplate: error: {exc}", file=sys.stderr)
+        print(f"shtemplate: error: {_diagnostic(exc)}", file=sys.stderr)
         return 1
     return 0

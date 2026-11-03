@@ -2,8 +2,8 @@
 
 Every error is an :class:`ExpansionError`, which is a :class:`ValueError`, so a
 single ``except ExpansionError`` (or ``except ValueError``) catches them all.
-Each error records the zero-based ``position`` in the template where the
-offending construct starts.
+Each error records the zero-based ``position`` of the offending construct, or
+``None`` when no single position applies, including output and pattern-work limits.
 """
 
 from __future__ import annotations
@@ -15,6 +15,9 @@ class ExpansionError(ValueError):
     Attributes:
         position: Zero-based index into the template of the construct that
             failed, or ``None`` when no single position applies.
+
+    >>> ExpansionError("invalid template", 2).position
+    2
     """
 
     def __init__(self, message: str, position: int | None = None) -> None:
@@ -28,6 +31,13 @@ class TemplateSyntaxError(ExpansionError):
     Raised for an unterminated ``${``, an invalid or unsupported parameter name
     such as ``${}`` or ``${1}``, an unknown operator such as ``${X@y}``, an
     unterminated quote inside a pattern, or nesting deeper than the parser allows.
+
+    >>> from shtemplate import expand
+    >>> try:
+    ...     expand("${}")
+    ... except TemplateSyntaxError as error:
+    ...     print(error.position)
+    0
     """
 
 
@@ -36,26 +46,35 @@ class UnsetVariableError(ExpansionError):
 
     Attributes:
         name: The variable name.
+
+    >>> str(UnsetVariableError("PORT", 0))
+    'undefined variable: PORT (at position 0)'
     """
 
     def __init__(self, name: str, position: int) -> None:
-        super().__init__(f"undefined variable: {name} (at position {position})", position)
+        label = name if len(name) <= 80 else "<name omitted>"
+        super().__init__(f"undefined variable: {label} (at position {position})", position)
         self.name = name
 
 
 class ParameterError(ExpansionError):
     """A ``${NAME:?word}`` or ``${NAME?word}`` expansion found its variable missing.
 
-    The message is ``"NAME: word"``, or the shell's default text when ``word``
-    is empty.
+    The message omits the expanded word, which can contain credentials.
+    Read ``detail`` explicitly when the application needs that sensitive value.
 
     Attributes:
         name: The variable name.
         detail: The expanded ``word`` (or the default text), without the name.
+
+    >>> error = ParameterError("PORT", "configure a port", 0)
+    >>> str(error), error.detail
+    ('PORT: required parameter is missing', 'configure a port')
     """
 
     def __init__(self, name: str, detail: str, position: int) -> None:
-        super().__init__(f"{name}: {detail}", position)
+        label = name if len(name) <= 80 else "<name omitted>"
+        super().__init__(f"{label}: required parameter is missing", position)
         self.name = name
         self.detail = detail
 
@@ -66,4 +85,11 @@ class UnsafeTemplateError(ExpansionError):
     Raised for command substitution (``$(...)``), backquotes and arithmetic
     expansion (``$((...))``), none of which is ever executed, and when the output
     would exceed the configured ``max_output``.
+
+    >>> from shtemplate import expand
+    >>> try:
+    ...     expand("$(id)", safe=True)
+    ... except UnsafeTemplateError as error:
+    ...     print(error.position)
+    0
     """
