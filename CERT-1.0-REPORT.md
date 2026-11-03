@@ -312,6 +312,40 @@ CLI and upgrade from PyPI 0.2.1. The skips are the two optional live Bash tests 
 unavailable WSL/dash. All pytest runs use a 300-second per-test timeout and scratch
 basetemp; temporary files remain under scratch. Gate logs use the `final-` prefix.
 
+## QA round 4 fixes
+
+Reviewed base: `98e18ed6e2dc1c88c847a40f0115a208b9aa3ed1`, branch `release/1.0.0`.
+Fix date: 2026-11-03. All three reported findings are addressed; none is disputed.
+Fix commit: `428f72268e89104cc325d9e0644713ee0cf0c611`
+(`pin non-BMP paths and UTF-8 error contracts`).
+
+These findings identify missing coverage of existing behavior. Production code, public
+API and runtime behavior remain unchanged. Ten added subprocess cases pass on the
+reviewed implementation and catch all three reported mutations. CHANGELOG records
+the added coverage. Independent lens re-verification remains pending.
+
+| Finding | Added contract and mutation evidence |
+| --- | --- |
+| E-14 | `test_filesystem_diagnostic_path_boundary` includes U+1F600 paths at exactly 200 and 201 code points for template, env-file and output arguments. N03 counts UTF-16 code units instead and fails all three 200-code-point cases; the 201-code-point cases still verify omission. |
+| E-15 | `test_invalid_utf8_offset_after_multibyte_prefix` sends bytes `58 3d c3 a9 ff 0a` through stdin, a template file and an env file. Each asserts exit 1, empty stdout and the complete diagnostic with byte offset 4. N09 reports character offset 3 and fails all three cases. |
+| E-16 | `test_invalid_utf8_stdin_diagnostic` sends byte `ff` and pins exit 1, empty stdout and the complete stderr message, including the `stdin` label, byte offset 0 and line ending. N10 changes the label to `<stdin>` and fails this contract plus the multibyte stdin case. |
+
+The affected CLI module reports **34 passed**. Mutations were replayed separately
+in scratch source copies: N03 and N09 each report **3 failed, 31 passed**; N10 reports
+**2 failed, 32 passed**. Every failure is the intended behavioral assertion, with no
+timeout or collection error. The repository source was never mutated.
+
+Evidence is under `C:/lianes8-build/codex-pylib/scratch/shtemplate-cert/fix-r4/`:
+`replay.py`, `baseline.log`, `N03.log`, `N09.log`, `N10.log` and `mutation-results.json`.
+
+`ruff format --check .`, `ruff check .`, `mypy --strict src` and `pytest` each exit 0.
+Strict typing also passes for `src tests` (33 files). With the freshly fetched,
+manifest-verified POSIX page and `SHTEMPLATE_E2E=1`, the full suite reports
+**399 passed, 3 skipped** in 49.40 seconds, including the installed-wheel build,
+CLI and upgrade from PyPI 0.2.1. The skips are the two optional live Bash tests and
+unavailable WSL/dash. All pytest runs use a 300-second per-test timeout and scratch
+basetemp; temporary files remain under scratch. The full suite log is `full.log`.
+
 ## Remaining certification stages
 
 Items 16 and 19 remain incomplete. QA round 1 reported findings for lenses a, b, c
