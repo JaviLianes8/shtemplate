@@ -185,7 +185,8 @@ The wheel upgrade, live Bash corpus and fresh seeded Bash comparisons all passed
 
 Reviewed base: `ff22ae389f0a9758b6d9587dea0cadd34d1be91f`, branch `release/1.0.0`.
 Fix date: 2026-11-03. All 20 reported findings are addressed; none is disputed.
-The changes are in the commit titled `fix certification QA findings`.
+Fix commit: `3d57ebb58de837575388e1cfb5c5fff0ba4afaaf`
+(`fix certification QA findings`).
 Independent lens re-verification remains pending; this section records fix evidence,
 not a replacement verdict for any lens.
 
