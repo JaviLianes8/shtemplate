@@ -245,6 +245,40 @@ tests and unavailable WSL/dash; the separate 101-case Bash check above covers th
 changed shell semantics without the legacy helper's device-file redirection.
 The full suite log is `full.log`; the resource probe is `resources.json`.
 
+## QA round 2 fixes
+
+Reviewed base: `12939f923c32fbc6ac558b229f98515ec4a28c9c`, branch `release/1.0.0`.
+Fix date: 2026-11-03. All four reported findings are addressed; none is disputed.
+Fix commit: `27c66b20bf09e54ea0a7618bd97dbcbf3bce16a7`
+(`pin assignment sink and diagnostic path contracts`).
+
+These findings identify missing contracts. The existing implementation already has
+the required behavior, so production code, public API and runtime behavior are unchanged.
+The new contracts pass on the reviewed base and fail under each reported mutation.
+CHANGELOG records the added coverage. Independent lens re-verification remains pending.
+
+| Finding | Added contract and mutation evidence |
+| --- | --- |
+| E-08 | `test_read_only_assignment_sink_raises_type_error` rejects MappingProxyType for empty and assigning templates; N04 produces two AttributeError failures. `test_assignment_sink_accepts_mutable_mapping` verifies UserDict with both templates and preserves existing entries. |
+| E-09 | `test_filesystem_diagnostic_path_boundary` checks nonexistent paths of exactly 200 and 201 characters for template, env-file and output arguments; N22 fails all three 201-character cases while the three 200-character cases pass. |
+| E-10 | `test_invalid_utf8_omits_long_existing_path` reads byte 0xff from regular files at 220-character paths through template and env-file arguments; N23 fails both cases. Exit 1, empty stdout, omitted path and byte offset are pinned. |
+| E-11 | `test_malformed_dotenv_omits_long_existing_path` reads malformed dotenv content from a regular file at a 220-character path; N24 fails. Exit 1, empty stdout, omitted path, line 2 and the useful syntax diagnostic are pinned. |
+
+Twelve new cases pass. The two affected test modules report **47 passed** on unchanged
+production code. All four mutations were replayed separately in scratch source copies;
+each failed its new behavior contract, without collection failures or timeouts.
+Evidence is under `C:/lianes8-build/codex-pylib/scratch/shtemplate-cert/fix-r2/`:
+`replay.py`, `baseline.log`, `mutation-results.json`, and `N04.log`, `N22.log`,
+`N23.log`, `N24.log`.
+
+`ruff format --check .`, `ruff check .`, `mypy --strict src` and `pytest` each exit 0.
+Strict typing also passes for `src tests` (33 files). With the freshly fetched,
+manifest-verified POSIX page and `SHTEMPLATE_E2E=1`, the full suite reports
+**381 passed, 3 skipped** in 36.13 seconds, including the installed-wheel build,
+CLI and upgrade from PyPI 0.2.1. The skips are the two optional live Bash tests and
+unavailable WSL/dash. All pytest runs use a 300-second per-test timeout and scratch
+basetemp; temporary files remain under scratch. The full suite log is `full.log`.
+
 ## Remaining certification stages
 
 Items 16 and 19 remain incomplete. QA round 1 reported findings for lenses a, b, c
