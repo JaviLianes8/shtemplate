@@ -13,6 +13,7 @@ import pytest
 def run_cli(args: list[str], stdin: str = "") -> subprocess.CompletedProcess[bytes]:
     env = dict(os.environ)
     env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
+    env["PYTHONIOENCODING"] = "utf-8"
     return subprocess.run(
         [sys.executable, "-m", "shtemplate", *args],
         input=stdin.encode(),
@@ -56,20 +57,23 @@ def test_filesystem_diagnostics_bound_long_paths(option: list[str]) -> None:
     assert b"Traceback" not in result.stderr
 
 
-def path_with_length(parent: Path, length: int) -> Path:
+def path_with_length(parent: Path, length: int, character: str = "p") -> Path:
     leaf_length = length - len(str(parent)) - 1
     assert 0 < leaf_length <= 255
-    path = parent / ("p" * leaf_length)
+    path = parent / (character * leaf_length)
     assert len(str(path)) == length
     return path
 
 
 @pytest.mark.parametrize("length", [200, 201])
 @pytest.mark.parametrize("option", [[], ["-e"], ["-o"]])
+@pytest.mark.parametrize("character", ["p", "\u00e9"], ids=["ascii", "unicode"])
 def test_filesystem_diagnostic_path_boundary(
-    tmp_path: Path, length: int, option: list[str]
+    tmp_path: Path, length: int, option: list[str], character: str
 ) -> None:
-    path = path_with_length(tmp_path / "missing", length)
+    path = path_with_length(tmp_path / "missing", length, character)
+    if character != "p":
+        assert len(str(path).encode("utf-8")) > 200
     result = run_cli(["-i", *option, str(path)])
     assert (result.returncode, result.stdout) == (1, b"")
     assert result.stderr.startswith(b"shtemplate: error: ")
@@ -100,3 +104,15 @@ def test_malformed_dotenv_omits_long_existing_path(tmp_path: Path) -> None:
     assert (result.returncode, result.stdout) == (1, b"")
     assert str(path).encode() not in result.stderr
     assert result.stderr.strip() == b"shtemplate: error: <path omitted>:2: expected NAME=VALUE"
+
+
+@pytest.mark.parametrize("source", ["stdin", "file"])
+def test_template_preserves_leading_utf8_bom(tmp_path: Path, source: str) -> None:
+    template = "\ufeff${X:-ok}\n"
+    if source == "file":
+        path = tmp_path / "bom.tpl"
+        path.write_bytes(template.encode("utf-8"))
+        result = run_cli(["-i", str(path)])
+    else:
+        result = run_cli(["-i"], template)
+    assert (result.returncode, result.stdout, result.stderr) == (0, b"\xef\xbb\xbfok\n", b"")
