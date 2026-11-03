@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections import UserDict
 from collections.abc import Mapping, MutableMapping
+from types import MappingProxyType
 from typing import cast
 
 import pytest
@@ -72,6 +74,22 @@ def test_environment_requires_a_mapping_even_without_references(value: object) -
 def test_assignment_sink_requires_a_mutable_mapping(value: object) -> None:
     with pytest.raises(TypeError, match="assigned must be a mutable mapping or None"):
         expand("", assigned=cast(MutableMapping[str, str], value))
+
+
+@pytest.mark.parametrize("template", ["", "${X:=value}"])
+def test_read_only_assignment_sink_raises_type_error(template: str) -> None:
+    sink = MappingProxyType({"kept": "original"})
+    with pytest.raises(TypeError, match="assigned must be a mutable mapping or None"):
+        expand(template, assigned=cast(MutableMapping[str, str], sink))
+    assert dict(sink) == {"kept": "original"}
+
+
+def test_assignment_sink_accepts_mutable_mapping() -> None:
+    sink = UserDict({"kept": "original"})
+    assert expand("", assigned=sink) == ""
+    assert sink == {"kept": "original"}
+    assert expand("${X:=value}", assigned=sink) == "value"
+    assert sink == {"kept": "original", "X": "value"}
 
 
 @pytest.mark.parametrize("value", [None, b"", 0, False, [], {}])

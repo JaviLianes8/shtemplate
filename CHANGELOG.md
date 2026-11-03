@@ -55,6 +55,8 @@ All notable changes to this project are documented here. The format follows
 - Exact safe-output and pattern-work boundaries, unknown error positions, empty default
   environments, repeated `--set` precedence, source precedence and `--list-vars -o`
   subprocess contracts.
+- Read-only assignment sink rejection, mutable mapping acceptance, exact 200/201-character
+  diagnostic path boundaries, and long-path UTF-8 and dotenv error contracts.
 - Documentation clarifies nested parameter evaluation in command-like text, optional
   error positions, NUL limits of shell transport and the verified Bash backslash behavior.
 

@@ -54,3 +54,49 @@ def test_filesystem_diagnostics_bound_long_paths(option: list[str]) -> None:
     size = len(result.stderr)
     assert size < 1000
     assert b"Traceback" not in result.stderr
+
+
+def path_with_length(parent: Path, length: int) -> Path:
+    leaf_length = length - len(str(parent)) - 1
+    assert 0 < leaf_length <= 255
+    path = parent / ("p" * leaf_length)
+    assert len(str(path)) == length
+    return path
+
+
+@pytest.mark.parametrize("length", [200, 201])
+@pytest.mark.parametrize("option", [[], ["-e"], ["-o"]])
+def test_filesystem_diagnostic_path_boundary(
+    tmp_path: Path, length: int, option: list[str]
+) -> None:
+    path = path_with_length(tmp_path / "missing", length)
+    result = run_cli(["-i", *option, str(path)])
+    assert (result.returncode, result.stdout) == (1, b"")
+    assert result.stderr.startswith(b"shtemplate: error: ")
+    assert b"Traceback" not in result.stderr
+    if length == 200:
+        assert str(path).encode() in result.stderr
+        assert b"<path omitted>" not in result.stderr
+    else:
+        assert str(path).encode() not in result.stderr
+        assert b"<path omitted>: " in result.stderr
+    assert len(result.stderr) < 1000
+
+
+@pytest.mark.parametrize("option", [[], ["-e"]])
+def test_invalid_utf8_omits_long_existing_path(tmp_path: Path, option: list[str]) -> None:
+    path = path_with_length(tmp_path, 220)
+    path.write_bytes(b"X=\xff\n")
+    result = run_cli(["-i", *option, str(path)])
+    assert (result.returncode, result.stdout) == (1, b"")
+    assert str(path).encode() not in result.stderr
+    assert result.stderr.strip() == (b"shtemplate: error: <path omitted>: not valid UTF-8 (byte 2)")
+
+
+def test_malformed_dotenv_omits_long_existing_path(tmp_path: Path) -> None:
+    path = path_with_length(tmp_path, 220)
+    path.write_bytes(b"OK=1\ninvalid input\n")
+    result = run_cli(["-i", "-e", str(path)])
+    assert (result.returncode, result.stdout) == (1, b"")
+    assert str(path).encode() not in result.stderr
+    assert result.stderr.strip() == b"shtemplate: error: <path omitted>:2: expected NAME=VALUE"
