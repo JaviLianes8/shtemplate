@@ -48,7 +48,7 @@ from shtemplate import expand
 expand("$MISSING", {}, strict=True)  # UnsetVariableError: undefined variable: MISSING ...
 expand("${MISSING:-ok}", {}, strict=True)  # "ok": the default handles the unset case
 
-expand("$(rm -rf ~)", {})  # "$(rm -rf ~)": left as literal text, never run
+expand("$(rm -rf ~)", {})  # "$(rm -rf ~)": never run; nested parameters still expand
 expand("$(rm -rf ~)", {}, safe=True)  # UnsafeTemplateError: command substitution ...
 ```
 

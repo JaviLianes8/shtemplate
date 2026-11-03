@@ -2,8 +2,8 @@
 
 Every error is an :class:`ExpansionError`, which is a :class:`ValueError`, so a
 single ``except ExpansionError`` (or ``except ValueError``) catches them all.
-Each error records the zero-based ``position`` in the template where the
-offending construct starts.
+Each error records the zero-based ``position`` of the offending construct, or
+``None`` when no single position applies, including output and pattern-work limits.
 """
 
 from __future__ import annotations

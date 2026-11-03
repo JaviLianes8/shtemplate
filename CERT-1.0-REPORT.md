@@ -181,7 +181,71 @@ page, `SHTEMPLATE_BASH` and `SHTEMPLATE_E2E=1`, the final suite is **299 passed,
 1 skipped** in 222.79 seconds. The only skip is WSL/dash, unavailable on this machine.
 The wheel upgrade, live Bash corpus and fresh seeded Bash comparisons all passed.
 
+## QA round 1 fixes
+
+Reviewed base: `ff22ae389f0a9758b6d9587dea0cadd34d1be91f`, branch `release/1.0.0`.
+Fix date: 2026-11-03. All 20 reported findings are addressed; none is disputed.
+The changes are in the commit titled `fix certification QA findings`.
+Independent lens re-verification remains pending; this section records fix evidence,
+not a replacement verdict for any lens.
+
+| Finding | Change and regression evidence |
+| --- | --- |
+| A-001 | GUIDE, README and expand docstring describe nested parameter evaluation, assignment and errors inside command-like text; three nested-evaluation contracts |
+| A-002 | GUIDE and error module describe optional positions and identify both resource-limit errors; unknown-position contracts |
+| A-003 | escape docstring and GUIDE explicitly exclude NUL from the shell comparison; Python NUL round-trip contract and live Bash check |
+| A-004 | GUIDE qualifies the backslash example by verified Bash 5.3.9 context; live stdin comparison |
+| B-01 | Parse collating symbols as lower and upper range endpoints; mixed endpoints, boundary characters and all four removals |
+| B-02 | Assignment returns the value after quote removal; both assignment operators, three quoting forms and enclosing quotes |
+| B-03 | Double-quoted patterns preserve backslash before a brace; direct and nested prefix/suffix patterns |
+| C-01 | Single-character parser branches precede tail searches; 8,000/16,000/32,000 apostrophe runs through expand and list_vars |
+| C-02 | Check cumulative output before the next sibling; observed mapping reads, transactional sink and bounded traced allocation |
+| C-03 | Normalize string and integer subclasses using base implementations; hostile lengths, comparisons and conversions |
+| C-04 | Normalize text before parser caching; unhashable subclasses accepted by expand and list_vars |
+| C-05 | Validate text, mapping, sink, boolean options and fetched values; consistent TypeError without input contents, lazy unused values |
+| C-06 | Bound filesystem diagnostics and source labels; subprocess tests for 12,000-character input, env-file and output paths |
+| E-01 | Accept exactly 1,000,000 safe-output characters and reject 1,000,001; M13 killed |
+| E-02 | Accept the exact ten-times work budget and reject the next value length; M17 killed |
+| E-03 | Default error positions and output/work-limit positions remain None; M27 killed |
+| E-04 | Repeated --set uses the last value in a subprocess; M35 killed |
+| E-05 | --list-vars -o writes exact file bytes with empty stdout; M39 killed |
+| E-06 | --set overrides both env-file and process values; M44 killed by both subprocess tests |
+| E-07 | Omitted/None environments ignore a seeded process variable; explicit os.environ reads it; M10 killed |
+
+The new behavior contracts ran before production changes: **60 failed, 8 passed**.
+The apostrophe contract took 20.01 seconds and the sibling-assignment case peaked at
+128,013,122 traced bytes on the original code. After the fixes, all initial 68 cases
+passed, including the five-second parsing bound and five-million-byte allocation bound.
+The final resource probe took 0.196 seconds for both parser entry points on 64,000
+apostrophes and measured 2,072,837 peak bytes for the 128-sibling assignment case.
+Four further contracts cover the clarified command-like text and NUL documentation.
+Every changed behavior is recorded in CHANGELOG; public names and signatures remain stable.
+
+Fresh local Git for Windows Bash 5.3.9 comparisons passed for all 101 handwritten
+range, assignment, brace and escaped-backslash cases. Bash also confirmed that NUL
+does not survive the shell here-document comparison. The shell scripts used stdin
+and captured pipes without device-file redirection.
+
+All seven reported surviving mutations were replayed in separate scratch source copies.
+Each produced an assertion failure in its new contract (M44 failed both source-precedence
+contracts); no timeout or collection failure is counted as a kill.
+
+Evidence is retained under `C:/lianes8-build/codex-pylib/scratch/shtemplate-cert/fix-r1/`:
+`red.log`, `bash-results.json`, `mutation-results.json`, and per-mutant `result.log` files.
+All pytest runs use a 300-second per-test timeout and a scratch basetemp. The POSIX
+chapter was fetched again into scratch and matched the repository manifest.
+
+Final round gates: `ruff format --check .`, `ruff check .`, `mypy --strict src`
+and `pytest` each exit 0. Strict typing also passes for `src tests` (33 files).
+With the fetched POSIX page and `SHTEMPLATE_E2E=1`, the suite reports **369 passed,
+3 skipped** in 29.71 seconds. The installed-wheel build, clean installation, CLI and
+upgrade from PyPI 0.2.1 pass. The skips are the two optional historical live Bash
+tests and unavailable WSL/dash; the separate 101-case Bash check above covers the
+changed shell semantics without the legacy helper's device-file redirection.
+The full suite log is `full.log`; the resource probe is `resources.json`.
+
 ## Remaining certification stages
 
-Items 16 and 19 have no verdict yet. The independent review, lenses a through e,
-merge and publication are separate stages; this report does not mark them passed.
+Items 16 and 19 remain incomplete. QA round 1 reported findings for lenses a, b, c
+and e; their fixes await independent re-verification. The independent review, final
+lens verdicts, merge and publication are separate stages and are not marked passed.

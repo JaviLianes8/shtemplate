@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ._nodes import Node, Param
 from ._parser import parse
+from ._validation import text_value
 
 _ESCAPES = {"\\": "\\\\", "$": "\\$", "`": "\\`"}
 
@@ -17,6 +18,7 @@ def list_vars(template: str) -> list[str]:
 
     Raises:
         TemplateSyntaxError: The template is malformed.
+        TypeError: ``template`` is not a string. String subclasses are normalized.
 
     Examples:
         >>> list_vars("$HOME/${APP:-demo}/${APP_DIR:-$HOME/.app}")
@@ -38,11 +40,16 @@ def escape(text: str) -> str:
     r"""Return a template that expands to exactly ``text``.
 
     Backslash, dollar and backquote are escaped with a backslash, so
-    ``expand(escape(text)) == text`` for every string, and a POSIX shell reading
-    the result as a here-document body prints ``text`` too.
+    ``expand(escape(text)) == text`` for every string. The shell comparison only
+    applies to text representable by the receiving shell, excluding NUL; this is
+    not a transport for arbitrary Python strings through shell here-documents.
+
+    Raises:
+        TypeError: ``text`` is not a string. String subclasses are normalized.
 
     Examples:
         >>> print(escape(r"cost: $5 \o/"))
         cost: \$5 \\o/
     """
+    text = text_value(text, "text must be a string")
     return "".join(_ESCAPES.get(char, char) for char in text)

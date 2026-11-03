@@ -57,14 +57,22 @@ def _bracket(
             if index < len(positions):
                 end = positions[index]
                 size = end - j - 2
-                if kind == ":":
+                if kind == "." and size == 1:
+                    low, j = pattern[j + 2], end + 2
+                elif kind == ":":
                     name = pattern[j + 2 : end] if size <= 6 else ""
                     tests.append(_CLASSES.get(name, _never))
-                elif size == 1:
-                    chars.add(pattern[j + 2])
-                j = end + 2
-                continue
-        low, j = _bracket_char(pattern, j)
+                    j = end + 2
+                    continue
+                else:
+                    if size == 1:
+                        chars.add(pattern[j + 2])
+                    j = end + 2
+                    continue
+            else:
+                low, j = _bracket_char(pattern, j)
+        else:
+            low, j = _bracket_char(pattern, j)
         if pattern[j : j + 1] == "-" and j + 1 < len(pattern) and pattern[j + 1] != "]":
             high, j = _bracket_char(pattern, j + 1)
             ranges.append((low, high))
@@ -75,6 +83,8 @@ def _bracket(
 
 
 def _bracket_char(pattern: str, j: int) -> tuple[str, int]:
+    if pattern[j : j + 2] == "[." and pattern[j + 3 : j + 5] == ".]":
+        return pattern[j + 2], j + 5
     if pattern[j] == "\\" and j + 1 < len(pattern):
         return pattern[j + 1], j + 2
     return pattern[j], j + 1

@@ -24,6 +24,12 @@ All notable changes to this project are documented here. The format follows
   echo arguments, which can contain credentials.
 - `max_output` now rejects booleans and non-integers with `TypeError`, and negative
   integers with `ValueError`, consistently even for empty templates.
+- Text arguments, mapping arguments, boolean options and fetched environment values
+  now consistently reject invalid types with `TypeError`, including a fetched `None`.
+  Unused environment values remain unevaluated. String and integer subclasses use
+  their underlying base values without overridden conversions or length comparisons.
+- CLI filesystem diagnostics omit paths longer than 200 characters and use bounded
+  system error descriptions. Env-file and UTF-8 source labels use the same path bound.
 
 ### Fixed
 
@@ -31,11 +37,26 @@ All notable changes to this project are documented here. The format follows
   are scanned in linear time rather than repeatedly scanning their remaining tail.
 - The pattern work limit counts all pattern characters, including bracket members,
   before compilation; long bracket expressions can now reach the limit earlier.
+- Collating symbols work as either endpoint of a bracket range, including mixed
+  character/symbol endpoints and all four pattern-removal operators.
+- Assignment expansions substitute the value after quote removal; quoting on the
+  enclosing expansion still controls whether pattern metacharacters are literal.
+- Double-quoted pattern words retain a backslash before `}`, including nested words.
+- Apostrophe runs are parsed without repeatedly scanning the remaining template.
+- Cumulative output limits stop evaluation before further siblings allocate values;
+  failed expansions still leave the assignment sink unchanged.
+- String subclasses cannot bypass safe output limits, integer subclasses cannot
+  override budget comparisons, and unhashable string templates work with parser caching.
 
 ### Added
 
 - Runnable examples for every public error, stronger privacy and boundary contracts,
   current specification checks, and installed-wheel upgrade checks from 0.2.1.
+- Exact safe-output and pattern-work boundaries, unknown error positions, empty default
+  environments, repeated `--set` precedence, source precedence and `--list-vars -o`
+  subprocess contracts.
+- Documentation clarifies nested parameter evaluation in command-like text, optional
+  error positions, NUL limits of shell transport and the verified Bash backslash behavior.
 
 
 ## [0.2.1] - 2026-10-13
