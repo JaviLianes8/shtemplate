@@ -10,13 +10,13 @@ from pathlib import Path
 import pytest
 
 
-def run_cli(args: list[str], stdin: str = "") -> subprocess.CompletedProcess[bytes]:
+def run_cli(args: list[str], stdin: str | bytes = "") -> subprocess.CompletedProcess[bytes]:
     env = dict(os.environ)
     env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
     env["PYTHONIOENCODING"] = "utf-8"
     return subprocess.run(
         [sys.executable, "-m", "shtemplate", *args],
-        input=stdin.encode(),
+        input=stdin.encode() if isinstance(stdin, str) else stdin,
         capture_output=True,
         env=env,
         timeout=30,
@@ -67,7 +67,9 @@ def path_with_length(parent: Path, length: int, character: str = "p") -> Path:
 
 @pytest.mark.parametrize("length", [200, 201])
 @pytest.mark.parametrize("option", [[], ["-e"], ["-o"]])
-@pytest.mark.parametrize("character", ["p", "\u00e9"], ids=["ascii", "unicode"])
+@pytest.mark.parametrize(
+    "character", ["p", "\u00e9", "\U0001f600"], ids=["ascii", "unicode", "non-bmp"]
+)
 def test_filesystem_diagnostic_path_boundary(
     tmp_path: Path, length: int, option: list[str], character: str
 ) -> None:
@@ -116,3 +118,25 @@ def test_template_preserves_leading_utf8_bom(tmp_path: Path, source: str) -> Non
     else:
         result = run_cli(["-i"], template)
     assert (result.returncode, result.stdout, result.stderr) == (0, b"\xef\xbb\xbfok\n", b"")
+
+
+@pytest.mark.parametrize("source", ["stdin", "template", "env-file"])
+def test_invalid_utf8_offset_after_multibyte_prefix(tmp_path: Path, source: str) -> None:
+    data = b"X=\xc3\xa9\xff\n"
+    label = "stdin"
+    if source == "stdin":
+        result = run_cli(["-i"], data)
+    else:
+        path = tmp_path / "invalid.txt"
+        path.write_bytes(data)
+        label = str(path)
+        option = ["-e"] if source == "env-file" else []
+        result = run_cli(["-i", *option, label])
+    expected = f"shtemplate: error: {label}: not valid UTF-8 (byte 4){os.linesep}".encode()
+    assert (result.returncode, result.stdout, result.stderr) == (1, b"", expected)
+
+
+def test_invalid_utf8_stdin_diagnostic() -> None:
+    result = run_cli(["-i"], b"\xff")
+    expected = f"shtemplate: error: stdin: not valid UTF-8 (byte 0){os.linesep}".encode()
+    assert (result.returncode, result.stdout, result.stderr) == (1, b"", expected)

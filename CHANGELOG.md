@@ -59,6 +59,9 @@ All notable changes to this project are documented here. The format follows
   diagnostic path boundaries, and long-path UTF-8 and dotenv error contracts.
 - Unicode diagnostic paths at 200/201 characters and leading UTF-8 BOM preservation
   through stdin and template files have subprocess contracts; runtime behavior is unchanged.
+- Non-BMP diagnostic paths at 200/201 code points, UTF-8 byte offsets after multibyte
+  prefixes, and the complete invalid-UTF-8 stdin diagnostic have subprocess contracts;
+  runtime behavior is unchanged.
 - Documentation clarifies nested parameter evaluation in command-like text, optional
   error positions, NUL limits of shell transport and the verified Bash backslash behavior.
 
