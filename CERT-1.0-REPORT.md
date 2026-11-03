@@ -279,6 +279,39 @@ CLI and upgrade from PyPI 0.2.1. The skips are the two optional live Bash tests 
 unavailable WSL/dash. All pytest runs use a 300-second per-test timeout and scratch
 basetemp; temporary files remain under scratch. The full suite log is `full.log`.
 
+## QA round 3 fixes
+
+Reviewed base: `9fcad6e711cc1e230794b5de763ce46f836359ba`, branch `release/1.0.0`.
+Fix date: 2026-11-03. Both reported findings are addressed; none is disputed.
+Fix commit: `9d445f14aacd153d41451a06d2fa61a173e80be8`
+(`pin unicode path and UTF-8 BOM contracts`).
+
+Both findings identify missing coverage of existing behavior. Production code, public
+API and runtime behavior remain unchanged. The contracts pass on the reviewed source
+and fail under the reported mutations. CHANGELOG records the added coverage.
+Independent lens re-verification remains pending.
+
+| Finding | Added contract and mutation evidence |
+| --- | --- |
+| E-12 | `test_filesystem_diagnostic_path_boundary` now includes Unicode paths at exactly 200 and 201 characters for template, env-file and output arguments. UTF-8 byte lengths exceed 200, and subprocess diagnostics use deterministic UTF-8 encoding. S05 fails all three 200-character Unicode cases; the 201-character cases still verify omission. |
+| E-13 | `test_template_preserves_leading_utf8_bom` asserts exact output bytes after parameter expansion from stdin and a regular template file. S08 fails both cases because it drops the leading BOM. |
+
+Eight added cases pass; the affected CLI module reports **24 passed**. Both mutations
+were replayed separately in scratch source copies. S05 reports **3 failed, 21 passed**;
+S08 reports **2 failed, 22 passed**. Each failure is the intended behavioral assertion,
+with no timeout or collection error. The repository source was never mutated.
+
+Evidence is under `C:/lianes8-build/codex-pylib/scratch/shtemplate-cert/fix-r3/`:
+`replay.py`, `baseline.log`, `S05.log`, `S08.log` and `mutation-results.json`.
+
+`ruff format --check .`, `ruff check .`, `mypy --strict src` and `pytest` each exit 0.
+Strict typing also passes for `src tests` (33 files). With the freshly fetched,
+manifest-verified POSIX page and `SHTEMPLATE_E2E=1`, the full suite reports
+**389 passed, 3 skipped** in 34.19 seconds, including the installed-wheel build,
+CLI and upgrade from PyPI 0.2.1. The skips are the two optional live Bash tests and
+unavailable WSL/dash. All pytest runs use a 300-second per-test timeout and scratch
+basetemp; temporary files remain under scratch. Gate logs use the `final-` prefix.
+
 ## Remaining certification stages
 
 Items 16 and 19 remain incomplete. QA round 1 reported findings for lenses a, b, c
