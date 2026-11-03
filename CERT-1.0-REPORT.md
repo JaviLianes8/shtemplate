@@ -12,8 +12,8 @@ Progress:
 - [x] Final wheel, upgrade and interpreter checks (items 8 and 10)
 - [x] Mutation round (item 18)
 - [x] Final four gates (item 15)
-- [ ] Independent review (item 16)
-- [ ] Five independent QA lenses (item 19)
+- [x] Independent review (item 16)
+- [x] Five independent QA lenses (item 19)
 - [ ] Merge and publication (item 17)
 
 ## Scorecard
@@ -35,7 +35,10 @@ Progress:
 | 13 | PASS: 1.0.0, stable classifier, supported versions, license, URLs, no dependencies |
 | 14 | PASS: wheel and sdist contents inspected; LICENSE and type marker present |
 | 15 | PASS: four gates independently exit 0; strict test typing also passes |
+| 16 | PASS: final independent review, round 1, no findings |
+| 17 | PASS: pre-merge release preparation; merge and publication pending |
 | 18 | PASS: 18 deliberate mutations, all caught |
+| 19 | PASS: all five final QA lenses, no unresolved findings |
 
 ## API and behavior
 
@@ -187,8 +190,7 @@ Reviewed base: `ff22ae389f0a9758b6d9587dea0cadd34d1be91f`, branch `release/1.0.0
 Fix date: 2026-11-03. All 20 reported findings are addressed; none is disputed.
 Fix commit: `3d57ebb58de837575388e1cfb5c5fff0ba4afaaf`
 (`fix certification QA findings`).
-Independent lens re-verification remains pending; this section records fix evidence,
-not a replacement verdict for any lens.
+This section records the original fix evidence. Final lens verdicts are recorded below.
 
 | Finding | Change and regression evidence |
 | --- | --- |
@@ -231,7 +233,7 @@ All seven reported surviving mutations were replayed in separate scratch source 
 Each produced an assertion failure in its new contract (M44 failed both source-precedence
 contracts); no timeout or collection failure is counted as a kill.
 
-Evidence is retained under `C:/lianes8-build/codex-pylib/scratch/shtemplate-cert/fix-r1/`:
+Evidence is retained under `../../scratch/shtemplate-cert/fix-r1/`:
 `red.log`, `bash-results.json`, `mutation-results.json`, and per-mutant `result.log` files.
 All pytest runs use a 300-second per-test timeout and a scratch basetemp. The POSIX
 chapter was fetched again into scratch and matched the repository manifest.
@@ -255,7 +257,7 @@ Fix commit: `27c66b20bf09e54ea0a7618bd97dbcbf3bce16a7`
 These findings identify missing contracts. The existing implementation already has
 the required behavior, so production code, public API and runtime behavior are unchanged.
 The new contracts pass on the reviewed base and fail under each reported mutation.
-CHANGELOG records the added coverage. Independent lens re-verification remains pending.
+CHANGELOG records the added coverage. Final lens re-verification passed; see the final QA table below.
 
 | Finding | Added contract and mutation evidence |
 | --- | --- |
@@ -267,7 +269,7 @@ CHANGELOG records the added coverage. Independent lens re-verification remains p
 Twelve new cases pass. The two affected test modules report **47 passed** on unchanged
 production code. All four mutations were replayed separately in scratch source copies;
 each failed its new behavior contract, without collection failures or timeouts.
-Evidence is under `C:/lianes8-build/codex-pylib/scratch/shtemplate-cert/fix-r2/`:
+Evidence is under `../../scratch/shtemplate-cert/fix-r2/`:
 `replay.py`, `baseline.log`, `mutation-results.json`, and `N04.log`, `N22.log`,
 `N23.log`, `N24.log`.
 
@@ -289,7 +291,7 @@ Fix commit: `9d445f14aacd153d41451a06d2fa61a173e80be8`
 Both findings identify missing coverage of existing behavior. Production code, public
 API and runtime behavior remain unchanged. The contracts pass on the reviewed source
 and fail under the reported mutations. CHANGELOG records the added coverage.
-Independent lens re-verification remains pending.
+Final lens re-verification passed; see the final QA table below.
 
 | Finding | Added contract and mutation evidence |
 | --- | --- |
@@ -301,7 +303,7 @@ were replayed separately in scratch source copies. S05 reports **3 failed, 21 pa
 S08 reports **2 failed, 22 passed**. Each failure is the intended behavioral assertion,
 with no timeout or collection error. The repository source was never mutated.
 
-Evidence is under `C:/lianes8-build/codex-pylib/scratch/shtemplate-cert/fix-r3/`:
+Evidence is under `../../scratch/shtemplate-cert/fix-r3/`:
 `replay.py`, `baseline.log`, `S05.log`, `S08.log` and `mutation-results.json`.
 
 `ruff format --check .`, `ruff check .`, `mypy --strict src` and `pytest` each exit 0.
@@ -322,7 +324,7 @@ Fix commit: `428f72268e89104cc325d9e0644713ee0cf0c611`
 These findings identify missing coverage of existing behavior. Production code, public
 API and runtime behavior remain unchanged. Ten added subprocess cases pass on the
 reviewed implementation and catch all three reported mutations. CHANGELOG records
-the added coverage. Independent lens re-verification remains pending.
+the added coverage. Final lens re-verification passed; see the final QA table below.
 
 | Finding | Added contract and mutation evidence |
 | --- | --- |
@@ -335,7 +337,7 @@ in scratch source copies: N03 and N09 each report **3 failed, 31 passed**; N10 r
 **2 failed, 32 passed**. Every failure is the intended behavioral assertion, with no
 timeout or collection error. The repository source was never mutated.
 
-Evidence is under `C:/lianes8-build/codex-pylib/scratch/shtemplate-cert/fix-r4/`:
+Evidence is under `../../scratch/shtemplate-cert/fix-r4/`:
 `replay.py`, `baseline.log`, `N03.log`, `N09.log`, `N10.log` and `mutation-results.json`.
 
 `ruff format --check .`, `ruff check .`, `mypy --strict src` and `pytest` each exit 0.
@@ -346,8 +348,74 @@ CLI and upgrade from PyPI 0.2.1. The skips are the two optional live Bash tests 
 unavailable WSL/dash. All pytest runs use a 300-second per-test timeout and scratch
 basetemp; temporary files remain under scratch. The full suite log is `full.log`.
 
-## Remaining certification stages
+## Final QA verdicts
 
-Items 16 and 19 remain incomplete. QA round 1 reported findings for lenses a, b, c
-and e; their fixes await independent re-verification. The independent review, final
-lens verdicts, merge and publication are separate stages and are not marked passed.
+All five lenses passed with no unresolved findings. Report paths below are local
+paths relative to the repository root. Each commit identifies the source checked
+by that lens; it is not a claim that every lens ran at the final commit.
+
+| Lens | Rounds | Final verdict | Report path | Commit |
+| --- | --- | --- | --- | --- |
+| a | 2 | PASS | `../../scratch/shtemplate-cert/lens-a-r2/REPORT.md` | `12939f923c32fbc6ac558b229f98515ec4a28c9c` |
+| b | 2 | PASS | `../../scratch/shtemplate-cert/lens-b-r2/REPORT.md` | `12939f923c32fbc6ac558b229f98515ec4a28c9c` |
+| c | 2 | PASS | `../../scratch/shtemplate-cert/lens-c-r2/REPORT.md` | `12939f923c32fbc6ac558b229f98515ec4a28c9c` |
+| d | 1 | PASS | `../../scratch/shtemplate-cert/lens-d-r1/REPORT.md` | `ff22ae389f0a9758b6d9587dea0cadd34d1be91f` |
+| e | 5 | PASS | `../../scratch/shtemplate-cert/lens-e-r5/REPORT.md` | `755535c192c0ec163518dd1177e43c227ac716fa` |
+
+The review verified report provenance and commit ancestry. Changes after the a/b/c
+reviewed commit affect tests and release records only. Packaging and installed-wheel
+checks were repeated by the reviewer at the final reviewed commit.
+
+## Final reviewer scorecard
+
+Round 1: PASS, no findings. Reviewed commit:
+`755535c192c0ec163518dd1177e43c227ac716fa`.
+Report: `../../scratch/shtemplate-cert/review-r1/REPORT.md`.
+
+The reviewer passed every reviewable item. Its item 17 status is "pending merge".
+For this pre-merge certification, item 17 below scores release preparation only;
+it does not claim that merge or publication has occurred. Those actions remain
+reserved to the release owner.
+
+| Item | Verdict | Evidence |
+| --- | --- | --- |
+| 1 | PASS | Reviewed all eight public names, actual signatures, defaults, error types and mapping/assignment behavior. Runtime signature inventory is in supplemental-results.json; stable-signature, operator-state, type and upgrade contracts passed. CHANGELOG identifies the intentional diagnostic, validation and correctness changes. |
+| 2 | PASS | Exact `__all__` and export-resolution contracts passed. README/GUIDE use public imports, with no imports from private modules. `__version__` is consistent with package metadata. |
+| 3 | PASS | Every exported symbol has an executable docstring example. Independently ran all 15 doctest statements with zero failures; the four repository doctest tests also passed. README execution and GUIDE comparison tests passed. |
+| 4 | PASS | `mypy --strict src` and `mypy --strict src tests` independently exited 0 (12 and 33 files). Runtime public annotations contain no Any. Both artifacts ship py.typed, and installed-wheel typing-resource contracts passed. |
+| 5 | PASS | Typed hierarchy, malformed syntax, strict/unset, required, unsafe, type and resource-limit contracts passed. Messages redact required words and bound names/paths; details remain explicitly documented sensitive attributes. Public exception constructors and caller mapping failures have documented responsibilities. |
+| 6 | PASS | Public contract suite covers every export, set/empty/unset operator states, lazy words, isolation, assignments, errors, escaping and variable ordering. Additional release/QA and subprocess contracts cover bounds and CLI behavior. Source suite: 399 passed; installed-wheel suite: 398 passed. |
+| 7 | PASS | Fetched the exact official POSIX page in this run and verified manifest size/hash. Both fetched-page provenance tests passed. Re-executed the 1,644-case real-shell corpus and 400 fresh seeded cases on local Bash and dash; see ground-truth detail in the review report. Handwritten generator rules and translated setup mappings are explicitly labelled. |
+| 8 | PASS | Built sdist then wheel, ran the opt-in wheel e2e test successfully, and independently installed live PyPI 0.2.1 in a fresh venv before upgrading to this wheel. Before/after probes, installed-suite, subprocess CLI checks and pip check passed. |
+| 9 | PASS | Executed seeded parser fuzzing (20,000 cases), 1,500 escaping round trips, nesting rejection, large input, malformed bracket, apostrophe scaling, safe-output/work-budget and allocation contracts. All passed with 300-second per-test timeouts. Fresh 400-case shell comparisons also passed. |
+| 10 | PASS | Executed every launcher path: only CPython 3.14.6 is available and its source and installed-wheel suites passed. The other 13 registrations fail to start because their executable paths are absent. Python 3.10-3.13 and free-threaded 3.14 could not be run here; exact attempts are retained in results.json and logs/interpreter-*.log. |
+| 11 | PASS | Both distributions pass `twine check --strict`. Rendered README with readme_renderer[md] into README.html without warnings and checked headings, code and table markup. Authored links are absolute. Problem, install, quick start, honest comparison, GUIDE and CHANGELOG links are present; executable examples and standard-library comparisons passed. |
+| 12 | PASS | CHANGELOG has a dated `[1.0.0] - 2026-11-02` section, explicitly identifies stable API/CLI support and describes changes, fixes, added contracts and the 0.2.1 upgrade. |
+| 13 | PASS | pyproject and built metadata agree on 1.0.0, Production/Stable, Python >=3.10 with 3.10-3.14 classifiers, MIT, author, keywords and required project URLs. Requires-Dist entries are confined to the dev extra; there are no runtime requirements. |
+| 14 | PASS | Inspected all 18 wheel and 49 sdist members. LICENSE is present in each. Every wheel package file matches source bytes. Wheel has only package/metadata/license files; sdist has intentional source tests, generated corpus, manifest and development scripts, with no caches, scratch, reports or fetched third-party page. |
+| 15 | PASS | `ruff format --check .`, `ruff check .`, `mypy --strict src` and pytest each independently exit 0. See the command log table in the review report. |
+| 16 | PASS | Independent review executed the required checks on its own pinned clone and found no unresolved failures. |
+| 17 | PASS | Release preparation: PR #4 is open from release/1.0.0 to main. Merge and publication remain pending and are outside this handoff. |
+| 18 | PASS | Inspected the repository's 18-row mutation table and later QA replays. Independently injected ten deliberate bugs, one per isolated scratch copy; all ten failed behavioral assertions. No syntax/setup failure or timeout was counted as a kill. Exact replacements and logs are retained. |
+| 19 | PASS | All five final QA reports are PASS; report provenance, commit ancestry and supporting evidence were checked. |
+
+Review evidence is relative to the review report directory. Its source suite passed
+399 tests with 3 skips; its installed-wheel suite passed 398 with 4 skips. Optional
+legacy shell tests were checked separately using captured pipes. Wheel build,
+strict metadata checks, live PyPI 0.2.1 upgrade and ten independent mutations passed.
+
+The earlier 12-runtime matrix is historical evidence. On the final review machine,
+only CPython 3.14.6 was available. Python 3.10-3.13 and free-threaded 3.14 could not
+be rerun there; the other launcher registrations pointed to absent executables.
+
+## Release handoff
+
+README includes the certification badge. The dated 1.0.0 CHANGELOG section and
+package, CLI, test and build versions agree on 1.0.0. Older version references
+identify release history or the actual PyPI 0.2.1 upgrade baseline.
+
+The final handoff requires a fresh GitHub clone of the pushed release branch,
+all four gates, a source-distribution and wheel build, strict metadata checks,
+and the suite against a wheel installed in a throwaway environment. Evidence is
+retained under `../../scratch/shtemplate-cert/final/`. PR #4 remains open; merge
+and publication are not performed by this certification step.
